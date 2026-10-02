@@ -1,0 +1,19 @@
+{
+  "appId": "app_17f88a68s0k",
+  "sourceCommit": "116f27cc45b9bb60deca47eb99a5f3dd50451baa",
+  "releaseId": "7692071281781312798",
+  "releaseStatus": "finished",
+  "onlineUrl": "https://bytedance.feishuapp.cn/app/app_17f88a68s0k",
+  "releasedAt": "2026-10-02T14:08:01.000Z",
+  "dailySchedule": {
+    "cron": "30 16 * * *",
+    "timezone": "Asia/Shanghai"
+  },
+  "scheduleVerification": {
+    "triggerLogId": "LOG7692071303083838666",
+    "eventSource": "schedule",
+    "eventStatus": "closed",
+    "checkedAt": "2026-10-02T14:05:08.907Z"
+  },
+  "note": "源码导出清单见SOURCE-MANIFEST.json；本清单不含账号信息或私有配置。"
+}
