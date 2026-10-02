@@ -66,6 +66,8 @@
 | 条件值比较修复、桌面主流程验收 | 提交 `d907fa8fe81bcc6c34576af159fcfd526bb567ea`；release `7692066895445544139`，finished |
 | 代码与实际页面一致性 | Chrome加载脚本URL包含该完整提交ID，保存与恢复流程已通过 |
 
-源码交付采用独立副本，不复制应用私有Git历史。导出的 `SOURCE-MANIFEST.json` 记录来源提交及每个文件的SHA-256；最终发布后补充 `RELEASE-MANIFEST.json`，建立来源提交、release与在线URL的对应。平台配置、真实数据缓存、会话、内部工作笔记和个人资料不在公开范围。
+公开源码：[barradasnuno312-collab/zhiheng-stock-screener](https://github.com/barradasnuno312-collab/zhiheng-stock-screener)。匿名仓库访问、`git ls-remote`及原始README读取已验证。
 
-每日调度已取得真实cron与`source=schedule`事件证据，配置恢复为每天北京时间16:30。最终运行版本以交付包`RELEASE-MANIFEST.json`中的来源提交与release为准。源码公开状态在交付清单单独记录；本地副本不等于已公开的源码URL。
+源码交付采用独立副本，不复制应用私有Git历史。导出的 `SOURCE-MANIFEST.json` 记录来源提交及每个文件的SHA-256；`RELEASE-MANIFEST.json`建立来源提交、release与在线URL的对应。平台配置、真实数据缓存、会话、内部工作笔记和个人资料不在公开范围。
+
+每日调度已取得真实cron与`source=schedule`事件证据，配置恢复为每天北京时间16:30。最终运行版本以交付包`RELEASE-MANIFEST.json`中的来源提交与release为准；公开仓库根目录保留同一份清单供核对。
