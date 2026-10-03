@@ -204,6 +204,14 @@ export interface AccessSession {
   authorized: boolean;
   expiresAt: string | null;
 }
+export interface AccountCredentials {
+  username: string;
+  password: string;
+}
+export interface AccountStatus {
+  registered: boolean;
+  username: string | null;
+}
 export interface CompareRequest {
   beforeRunId: string;
   afterRunId: string;
@@ -237,9 +245,6 @@ export interface CreateMonitorRequest {
 }
 export interface ToggleMonitorRequest {
   enabled: boolean;
-}
-export interface AccessRequest {
-  code: string;
 }
 export interface RecoveryResponse {
   processed: number;

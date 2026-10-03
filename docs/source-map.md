@@ -5,7 +5,7 @@
 | 职责 | 文件 |
 | --- | --- |
 | 公共契约、指标、输入校验 | `shared/api.interface.ts`、`metric-catalog.ts`、`validation.ts` |
-| 访问码、独立会话、管理权限 | `server/modules/research/access.service.ts` |
+| 匿名访客会话、数据隔离、管理权限 | `server/modules/research/access.service.ts` |
 | 扶摇网络适配与业务错误解码 | `fuyao.service.ts`、`source-contract.ts` |
 | 财务与价格窗口公式 | `metrics.ts` |
 | 三态判断、同快照比较 | `screening.ts` |
@@ -28,8 +28,10 @@
 
 | 方法与路径 | 说明 |
 | --- | --- |
-| GET `/api/access/session` | 会话有效性 |
-| POST `/api/access/verify` | 访问码校验，限流后设置HttpOnly Cookie |
+| GET `/api/access/session` | 复用或自动创建匿名访客会话，设置HttpOnly Cookie |
+| GET `/api/access/account` | 查询当前访客是否已绑定账号 |
+| POST `/api/access/register` | 将当前访客记录绑定至新账号 |
+| POST `/api/access/login` | 登录已有账号并切换到其持久化owner |
 | POST `/api/access/logout` | 服务端撤销会话 |
 | GET `/api/research/catalog` | 指标、配置及最新快照状态 |
 | POST `/api/research/intent` | 快速创建解析任务 |
@@ -49,7 +51,7 @@
 | GET `/api/maintenance/jobs/:id` | 管理员查看刷新进度 |
 | POST `/api/maintenance/development/work/:id` | 仅development及管理员可用的验证入口 |
 
-研究接口统一使用 `SessionGuard`；服务端从已验证Cookie获取owner，不接受前端ownerId。前端使用平台 `axiosForBackend` 函数并保留平台CSRF保护。访问码是经明确选择的评审访客方案，不建立注册、企业成员或角色系统。
+研究接口统一使用 `SessionGuard`；服务端从匿名HttpOnly Cookie获取owner，不接受前端ownerId。前端使用平台 `axiosForBackend` 函数并保留平台CSRF保护。注册只绑定当前owner，账号名规范化后按哈希索引，密码使用随机盐和scrypt派生值保存，不存储明文；会话创建、注册及登录均有限流。
 
 ## 可恢复取数
 
@@ -61,7 +63,7 @@
 
 ## 发布对应
 
-已发布访问入口：[知衡工作台](https://bytedance.feishuapp.cn/app/app_17f88a68s0k)。平台公开可达，研究接口需要服务端访问码会话。
+已发布访问入口：[知衡工作台](https://bytedance.feishuapp.cn/app/app_17f88a68s0k)。平台公开可达，打开页面时自动建立匿名访客会话。
 
 | 验证版本 | 发布记录 |
 | --- | --- |
@@ -70,6 +72,7 @@
 | 性能、WCAG、移动结果、导出分享与快照复盘 | 提交 `6ef543bda38ae391c5d6ba8cbccf0308b9a97b69`；release `7692107995401112862`，finished |
 | 交互减步、通俗文案与渐进式指标说明 | 提交 `6cb69d549cd6324f576df751521d374108b6602d`；release `7692251422452452289`，finished |
 | 内容精简、帮助中心与反馈资源 | 提交 `3dc842c63fb4aa7b489fc12ae31184bba9fec802`；release `7692265979913325868`，finished |
+| 无密码阅卷、匿名会话与可选持久账号 | 提交 `b9c6d848a7d889127f760b05d8b353fcbeecd610`；release `7692297365152599240`，finished |
 
 公开源码：[barradasnuno312-collab/zhiheng-stock-screener](https://github.com/barradasnuno312-collab/zhiheng-stock-screener)。匿名仓库访问、`git ls-remote`及原始README读取已验证。
 

@@ -1,7 +1,7 @@
 import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
 import { isAxiosError } from 'axios';
 import type {
-  AccessSession, CatalogResponse, CompareRequest, JobStatus, LoadVersionResponse,
+  AccessSession, AccountCredentials, AccountStatus, CatalogResponse, CompareRequest, JobStatus, LoadVersionResponse,
   Monitor, MonitorEvent, ParseRequest, RunComparison, SavedVersion, SaveStrategyRequest,
   ScreenRequest, ScreenRun, SnapshotReplay, StockCompareResponse,
 } from '../../../shared/api.interface';
@@ -11,7 +11,11 @@ async function request<T>(url: string, method: 'GET' | 'POST' | 'PATCH', data?: 
   return response.data;
 }
 export const session = (): Promise<AccessSession> => request('/api/access/session', 'GET');
-export const login = (code: string): Promise<AccessSession> => request('/api/access/verify', 'POST', { code });
+export const account = (): Promise<AccountStatus> => request('/api/access/account', 'GET');
+export const register = (data: AccountCredentials): Promise<AccountStatus> =>
+  request('/api/access/register', 'POST', data);
+export const login = (data: AccountCredentials): Promise<AccessSession> =>
+  request('/api/access/login', 'POST', data);
 export const logout = (): Promise<AccessSession> => request('/api/access/logout', 'POST');
 export const catalog = (): Promise<CatalogResponse> => request('/api/research/catalog', 'GET');
 export const parse = (data: ParseRequest): Promise<JobStatus> => request('/api/research/intent', 'POST', data);

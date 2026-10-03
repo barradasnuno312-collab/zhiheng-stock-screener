@@ -1,12 +1,11 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
 import {
-  ArrowDownToLine, ArrowRight, Check, CircleHelp, Compass, Database, ExternalLink,
-  Layers3, LoaderCircle, LockKeyhole, RefreshCw, Search, Share2, ShieldCheck, Sparkles,
+  ArrowDownToLine, Check, CircleHelp, Compass, Database, ExternalLink, Layers3,
+  LoaderCircle, LogOut, RefreshCw, Search, Share2, Sparkles, UserRound,
 } from 'lucide-react';
 import type {
-  CatalogResponse, Condition, IntentDraft, JobStatus, Monitor, RunComparison,
+  AccountStatus, CatalogResponse, Condition, IntentDraft, JobStatus, Monitor, RunComparison,
   SavedVersion, ScreenRun, SnapshotReplay, SnapshotSummary, StockCompareResponse,
 } from '../../../../shared/api.interface';
 import { METRIC_MAP, OPERATOR_LABELS } from '../../../../shared/metric-catalog';
@@ -52,8 +51,8 @@ const ResearchPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isLibrary: boolean = location.pathname.endsWith('/strategies');
-  const loginForm = useForm<{ code: string }>({ defaultValues: { code: '' } });
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [sessionAttempt, setSessionAttempt] = useState(0);
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [snapshot, setSnapshot] = useState<SnapshotSummary | null>(null);
   const [versions, setVersions] = useState<SavedVersion[]>([]);
@@ -72,6 +71,13 @@ const ResearchPage: React.FC = () => {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [account, setAccount] = useState<AccountStatus | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountMode, setAccountMode] = useState<'register' | 'login'>('register');
+  const [accountUsername, setAccountUsername] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountError, setAccountError] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(INITIAL_SHARED_SCREEN ? '分享的条件已填入。核对阈值后即可筛选。' : '');
@@ -89,10 +95,14 @@ const ResearchPage: React.FC = () => {
   }
   useEffect(() => {
     let mounted = true;
-    void api.session().then((session) => { if (mounted) setAuthorized(session.authorized); })
+    void api.session().then((session) => {
+      if (!mounted) return;
+      setAuthorized(session.authorized);
+      if (!session.authorized) setError('访客会话未能建立，请重试。');
+    })
       .catch((failure: unknown) => { if (mounted) { setAuthorized(false); setError(api.errorMessage(failure)); } });
     return () => { mounted = false; };
-  }, []);
+  }, [sessionAttempt]);
   useEffect(() => {
     if (authorized !== true) { if (authorized === false) setBooting(false); return; }
     let mounted = true;
@@ -100,12 +110,12 @@ const ResearchPage: React.FC = () => {
     const previousId: string | null = INITIAL_SHARED_SCREEN ? null : sessionStorage.getItem('zh-last-run');
     const jobId: string | null = INITIAL_SHARED_SCREEN ? null : sessionStorage.getItem('zh-intent-job');
     void Promise.all([
-      api.catalog(), api.versions(), api.monitors(),
+      api.catalog(), api.versions(), api.monitors(), api.account().catch(() => ({ registered: false, username: null })),
       previousId ? api.run(previousId).catch(() => null) : Promise.resolve(null),
       jobId ? api.job(jobId).catch(() => null) : Promise.resolve(null),
-    ]).then(([data, nextVersions, nextMonitors, previous, restored]) => {
+    ]).then(([data, nextVersions, nextMonitors, nextAccount, previous, restored]) => {
       if (!mounted) return;
-      setCatalog(data); setVersions(nextVersions); setMonitors(nextMonitors);
+      setCatalog(data); setVersions(nextVersions); setMonitors(nextMonitors); setAccount(nextAccount);
       setSnapshot(previous?.snapshot ?? data.snapshot);
       if (previous) {
         setRun(previous); setConditions(previous.conditions); setText(previous.intent);
@@ -178,38 +188,51 @@ const ResearchPage: React.FC = () => {
   const share = (): void => { void perform('复制条件链接', async () => {
     if (!conditions.length) throw new Error('请先生成或添加筛选条件');
     await navigator.clipboard.writeText(buildShareUrl(text, conditions, window.location.href));
-    setNotice('条件链接已复制，不包含访问码、股票名单或历史结果。');
+    setNotice('条件链接已复制，不包含股票名单或历史结果。');
   }); };
   const replayVersion = (id: string): void => { void perform('读取历史变化', async () => {
     setReplay(await api.replay(id));
   }); };
+  const submitAccount = (): void => {
+    setAccountBusy(true); setAccountError('');
+    void (async () => {
+      try {
+        if (accountMode === 'register') {
+          const next = await api.register({ username: accountUsername, password: accountPassword });
+          setAccount(next); setAccountOpen(false); setNotice(`账号“${next.username}”已创建，当前记录已绑定。`);
+          setAccountPassword('');
+        } else {
+          await api.login({ username: accountUsername, password: accountPassword });
+          sessionStorage.removeItem('zh-last-run'); sessionStorage.removeItem('zh-intent-job');
+          window.location.reload();
+        }
+      } catch (failure: unknown) { setAccountError(api.errorMessage(failure)); }
+      finally { setAccountBusy(false); }
+    })();
+  };
+  const logoutAccount = (): void => {
+    setAccountBusy(true); setAccountError('');
+    void api.logout().then(() => {
+      sessionStorage.removeItem('zh-last-run'); sessionStorage.removeItem('zh-intent-job');
+      window.location.reload();
+    }).catch((failure: unknown) => setAccountError(api.errorMessage(failure)))
+      .finally(() => setAccountBusy(false));
+  };
 
-  if (authorized !== true) return <main className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-    <section className="flex flex-col justify-between bg-sidebar p-8 text-sidebar-foreground sm:p-14 lg:p-20">
-      <div className="flex items-center gap-3"><Compass size={30} strokeWidth={1.5} /><strong className="text-2xl tracking-widest">知衡</strong><span className="ml-2 border-l border-current/20 pl-4 text-xs tracking-widest opacity-65">ZHIHENG</span></div>
-      <div className="py-14">
-        <h1 className="text-4xl leading-snug font-medium lg:text-5xl">每一个选股想法，<br />都应该有据可查。</h1>
-        <p className="mt-6 max-w-md text-sm leading-7 opacity-65">把研究想法转成可编辑条件，并查看每只股票的判断原因。</p>
-      </div><p className="text-xs opacity-45">沪深300 · 财务、估值与历史价格研究</p>
-    </section>
-    <section className="flex items-center justify-center bg-background px-8 py-16">
-      <div className="w-full max-w-sm"><LockKeyhole className="mb-6 size-7 text-primary" strokeWidth={1.5} />
-        <p className="text-xs tracking-widest text-muted-foreground">访问验证</p><h2 className="mt-3 text-2xl font-semibold">进入研究工作台</h2>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">输入访问码即可进入。你的筛选与其他访客相互独立。</p>
-        <form className="mt-8 space-y-4" onSubmit={loginForm.handleSubmit(({ code }) => perform('验证访问码', async () => {
-          await api.login(code); loginForm.reset(); setBooting(true); setAuthorized(true);
-        }))}>
-          <label htmlFor="access-code" className="text-sm font-medium">访问码</label>
-          <Input id="access-code" type="password" autoComplete="current-password" placeholder="请输入访问码"
-            {...loginForm.register('code', { required: true, maxLength: 128 })} />
-          <Button className="w-full" size="lg" type="submit" disabled={!!busy || authorized === null}>
-            {busy || authorized === null ? <LoaderCircle className="animate-spin" /> : <>开始研究<ArrowRight /></>}</Button>
-        </form>
-        {error && <div role="alert" className="mt-4 text-sm text-destructive">{error}
-          {authorized === null && <Button variant="ghost" size="sm" onClick={() => { setAuthorized(false); setError(''); }}>重试</Button>}</div>}
-        <p className="mt-8 flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ShieldCheck className="mt-0.5 size-4 shrink-0" />筛选记录仅属于当前浏览器会话。本工具不提供买卖建议。</p>
-      </div>
-    </section>
+  if (authorized !== true) return <main className="grid min-h-screen place-items-center bg-background p-6 text-foreground">
+    <div className="w-full max-w-sm text-center">
+      <Compass className="mx-auto size-10 text-primary" strokeWidth={1.5} />
+      <h1 className="mt-5 text-2xl font-semibold tracking-[0.2em]">知衡</h1>
+      {authorized === false ? <div role="alert" className="mt-8 rounded-lg border bg-card p-5">
+        <p className="text-sm text-destructive">{error || '访客会话未能建立，请重试。'}</p>
+        <Button className="mt-4" onClick={() => {
+          setAuthorized(null); setError(''); setBooting(true); setSessionAttempt((value) => value + 1);
+        }}><RefreshCw />重试</Button>
+      </div> : <div role="status" className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+        <LoaderCircle className="size-4 animate-spin text-primary" />正在准备研究工作台
+      </div>}
+      <p className="mt-4 text-xs text-muted-foreground">无需登录，将自动建立独立访客会话。</p>
+    </div>
   </main>;
 
   return <div className="min-h-screen bg-background text-foreground">
@@ -230,6 +253,10 @@ const ResearchPage: React.FC = () => {
           <span className="hidden border-l pl-5 text-xs text-muted-foreground sm:block">自然语言选股 · 结果可核查</span></div>
         <nav className="flex items-center gap-2 text-sm"><NavLink to="/" end className={({ isActive }) => `flex min-h-11 items-center px-2 md:hidden ${isActive ? 'font-medium text-primary' : 'text-muted-foreground'}`}>工作台</NavLink>
           <NavLink to="/strategies" className={({ isActive }) => `flex min-h-11 items-center px-2 md:hidden ${isActive ? 'font-medium text-primary' : 'text-muted-foreground'}`}>策略与跟踪</NavLink>
+          <Button variant="ghost" size="sm" aria-label={account?.registered ? `账号 ${account.username}` : '注册或登录账号'}
+            onClick={() => { setAccountMode('register'); setAccountError(''); setAccountOpen(true); }}>
+            <UserRound /><span className="hidden lg:inline">{account?.registered ? account.username : '注册 / 登录'}</span>
+          </Button>
           <Button variant="ghost" size="icon" aria-label="帮助与说明" onClick={() => setAboutOpen(true)}><CircleHelp /></Button></nav>
       </header>
       <main id="research-main" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-6 p-5 lg:p-10">
@@ -237,7 +264,7 @@ const ResearchPage: React.FC = () => {
         {notice && <div role="status" className="rounded-lg border border-primary/15 bg-primary/5 p-4 text-sm text-primary">{notice}</div>}
         <Suspense fallback={<WorkspaceSkeleton />}>
         {booting ? <WorkspaceSkeleton /> : isLibrary ? <StrategyLibrary versions={versions} monitors={monitors} scheduleEnabled={catalog?.scheduleEnabled ?? false}
-          busy={!!busy} onLoad={loadVersion}
+          busy={!!busy} registered={account?.registered ?? false} onLoad={loadVersion}
           onMonitor={(id) => { void perform('创建监控', async () => { await api.createMonitor(id); setMonitors(await api.monitors()); setNotice('已保存监控设置。'); }); }}
           onCheck={(id) => { void perform('检查条件', async () => { const event = await api.check(id); setMonitors(await api.monitors()); setNotice(event?.message ?? '检查完成'); }); }}
           onToggle={(id, enabled) => { void perform('修改监控', async () => { await api.toggle(id, enabled); setMonitors(await api.monitors()); }); }}
@@ -329,6 +356,51 @@ const ResearchPage: React.FC = () => {
       <div className="flex flex-wrap justify-end gap-2">{activeVersion && <Button variant="outline" disabled={!!busy || !saveName.trim()} onClick={() => save(true)}>另存为新策略</Button>}
         <Button disabled={!!busy || !saveName.trim()} onClick={() => save(false)}>{activeVersion ? `保存新版本 v${activeVersion.version + 1}` : '保存'}</Button></div>
     </DialogContent></Dialog>
+    <Dialog open={accountOpen} onOpenChange={(open) => {
+      setAccountOpen(open);
+      if (!open) { setAccountError(''); setAccountPassword(''); }
+    }}><DialogContent className="bg-card">
+      {account?.registered ? <>
+        <DialogHeader><DialogTitle>账号</DialogTitle>
+          <DialogDescription>当前访客记录已绑定账号，可在其他浏览器登录后继续使用。</DialogDescription></DialogHeader>
+        <div className="rounded-lg bg-muted/60 p-4">
+          <p className="text-xs text-muted-foreground">账号名</p>
+          <p className="mt-1 font-medium">{account.username}</p>
+        </div>
+        {accountError && <p role="alert" className="text-sm text-destructive">{accountError}</p>}
+        <div className="flex justify-end"><Button variant="outline" disabled={accountBusy} onClick={logoutAccount}>
+          {accountBusy ? <LoaderCircle className="animate-spin" /> : <LogOut />}退出账号</Button></div>
+      </> : <>
+        <DialogHeader><DialogTitle>{accountMode === 'register' ? '注册以长期使用' : '登录已有账号'}</DialogTitle>
+          <DialogDescription>{accountMode === 'register'
+            ? '注册后，当前访客的策略和跟踪记录会绑定到账号。'
+            : '登录会切换到该账号；当前临时访客尚未注册的记录不会自动合并。'}</DialogDescription></DialogHeader>
+        <div role="tablist" aria-label="账号操作" className="grid grid-cols-2 rounded-lg bg-muted p-1">
+          {(['register', 'login'] as const).map((mode) => <Button key={mode} type="button" role="tab"
+            aria-selected={accountMode === mode} variant={accountMode === mode ? 'secondary' : 'ghost'}
+            onClick={() => { setAccountMode(mode); setAccountError(''); setAccountPassword(''); }}>
+            {mode === 'register' ? '注册' : '登录'}</Button>)}
+        </div>
+        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); submitAccount(); }}>
+          <div><label htmlFor="account-username" className="text-sm font-medium">账号名</label>
+            <Input id="account-username" className="mt-2" value={accountUsername} autoComplete="username"
+              maxLength={32} onChange={(event) => setAccountUsername(event.target.value)}
+              placeholder="3—32位文字、字母或数字" /></div>
+          <div><label htmlFor="account-password" className="text-sm font-medium">密码</label>
+            <Input id="account-password" className="mt-2" type="password"
+              autoComplete={accountMode === 'register' ? 'new-password' : 'current-password'}
+              maxLength={128} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)}
+              placeholder="至少10位" /></div>
+          {accountMode === 'register' && <p className="text-xs leading-5 text-muted-foreground">
+            首版不支持密码找回，请自行保管账号名和密码。</p>}
+          {accountError && <p role="alert" className="text-sm text-destructive">{accountError}</p>}
+          <Button className="w-full" type="submit"
+            disabled={accountBusy || accountUsername.trim().length < 3 || accountPassword.length < 10}>
+            {accountBusy && <LoaderCircle className="animate-spin" />}
+            {accountMode === 'register' ? '创建账号并绑定当前记录' : '登录账号'}</Button>
+        </form>
+      </>}
+    </DialogContent></Dialog>
     <Dialog open={compareOpen} onOpenChange={setCompareOpen}><DialogContent className="max-h-[85vh] max-w-4xl overflow-auto bg-card"><DialogHeader>
       <DialogTitle>条件修改后的结果变化</DialogTitle><DialogDescription>两次筛选使用同一份数据，只比较条件变化。各条件的单独影响不能直接相加。</DialogDescription></DialogHeader>
       <div className="grid gap-4 md:grid-cols-2">{[beforeRun, run].map((item, index) => <div key={index} className="rounded-lg bg-muted/60 p-4 text-xs leading-6">
@@ -380,8 +452,8 @@ const ResearchPage: React.FC = () => {
         <details className="border-t">
           <summary className="min-h-11 cursor-pointer py-3 font-medium">保存、分享和导出的区别</summary>
           <div className="space-y-2 pb-3 text-muted-foreground">
-            <p><span className="font-medium text-foreground">保存：</span>保留条件、结果和数据日期；记录保留30天，仅当前浏览器访客可访问。</p>
-            <p><span className="font-medium text-foreground">分享：</span>复制想法和条件链接，不包含访问码、股票名单或历史结果；打开者仍需访问码。</p>
+            <p><span className="font-medium text-foreground">保存：</span>保留条件、结果和数据日期；临时访客记录保留30天，注册后可跨浏览器继续使用。</p>
+            <p><span className="font-medium text-foreground">分享：</span>复制想法和条件链接，不包含股票名单或历史结果。</p>
             <p><span className="font-medium text-foreground">导出：</span>将当前分类及搜索结果下载为CSV。</p>
           </div>
         </details>

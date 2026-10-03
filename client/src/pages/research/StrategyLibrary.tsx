@@ -10,6 +10,7 @@ interface StrategyLibraryProps {
   monitors: Monitor[];
   scheduleEnabled: boolean;
   busy: boolean;
+  registered: boolean;
   onLoad: (id: string) => void;
   onMonitor: (id: string) => void;
   onCheck: (id: string) => void;
@@ -67,7 +68,9 @@ const StrategyLibrary: React.FC<StrategyLibraryProps> = (props) => {
         </details>)}</div>
       </div>)}</div>
     </section>
-    <p className="text-xs text-muted-foreground">记录保留30天。清除浏览器 Cookie 或退出后，当前访客将无法再访问这些记录。</p>
+    <p className="text-xs text-muted-foreground">{props.registered
+      ? '当前记录已绑定账号，可在其他浏览器登录后继续使用。'
+      : '临时访客记录保留30天；注册账号后可在其他浏览器继续使用。'}</p>
   </div>;
 };
 export default StrategyLibrary;

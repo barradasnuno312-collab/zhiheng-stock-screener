@@ -8,7 +8,7 @@ Schema 摘录卡：
 - 输入 required：`text`、`catalog`、`previous`，均为纯文本字符串。
 - 输出 required：`intentSummary`（string）、`conditions`、`clarifications`、`unsupportedRequests`、`warnings`（array）。
 - 数组内部结构仅由插件说明引导；必须通过 `shared/validation.ts` 的 Zod 校验。
-- 调用侧：Server。原因：访问码保护、访客/全局配额与解析日志一致落库；使用任务触发、状态查询，入口快速返回。
+- 调用侧：Server。原因：匿名访客会话隔离、访客/全局配额与解析日志一致落库；使用任务触发、状态查询，入口快速返回。
 - 服务端 `call()` 无泛型，结果先按 unknown 接收，再验证；所有输入均为文本。
 - 固定模型ID `2015`、temperature `0.5`、maxTokens `8192` 遵守已安装manifest，不擅自映射为某个未核实的模型品牌。
 

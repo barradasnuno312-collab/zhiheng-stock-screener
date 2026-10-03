@@ -1,11 +1,11 @@
 import {
-  Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post, Req, Res, UseGuards,
+  Body, Controller, Get, Header, Inject, NotFoundException, Param, Patch, Post, Req, Res, UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type {
-  AccessRequest, AccessSession, CatalogResponse, CompareRequest, CreateMonitorRequest, JobStatus,
+  AccessSession, AccountCredentials, AccountStatus, CatalogResponse, CompareRequest, CreateMonitorRequest, JobStatus,
   LoadVersionResponse, Monitor, MonitorEvent, ParseRequest, RunComparison, SavedVersion,
   SaveStrategyRequest, ScreenRequest, ScreenRun, SnapshotReplay, StockCompareResponse,
   ToggleMonitorRequest, RecoveryResponse,
@@ -20,15 +20,34 @@ import { MonitorService } from './monitor.service';
 import { validate } from './research-utils';
 import { parseRequestSchema } from '../../../shared/validation';
 
+const accountCredentialsSchema = z.object({
+  username: z.string().trim().min(3).max(32).regex(/^[\p{L}\p{N}_-]+$/u, '账号名只能包含文字、字母、数字、下划线或短横线'),
+  password: z.string().min(10).max(128),
+}).strict();
+
 @Controller('api/access')
 export class AccessController {
   constructor(@Inject(AccessService) private readonly access: AccessService) {}
   @Get('session')
-  session(@Req() req: Request): Promise<AccessSession> { return this.access.session(req); }
-  @Post('verify')
-  verify(@Req() req: Request, @Res({ passthrough: true }) res: Response, @Body() body: AccessRequest): Promise<AccessSession> {
-    const input = validate(z.object({ code: z.string().min(1).max(128) }).strict(), body);
-    return this.access.login(req, res, input.code);
+  @Header('Cache-Control', 'no-store')
+  session(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<AccessSession> {
+    return this.access.start(req, res);
+  }
+  @Get('account')
+  @UseGuards(SessionGuard)
+  account(@Req() req: Request): Promise<AccountStatus> { return this.access.account(req); }
+  @Post('register')
+  @UseGuards(SessionGuard)
+  register(@Req() req: Request, @Body() body: AccountCredentials): Promise<AccountStatus> {
+    const input = validate(accountCredentialsSchema, body);
+    return this.access.register(req, input.username, input.password);
+  }
+  @Post('login')
+  login(
+    @Req() req: Request, @Res({ passthrough: true }) res: Response, @Body() body: AccountCredentials,
+  ): Promise<AccessSession> {
+    const input = validate(accountCredentialsSchema, body);
+    return this.access.login(req, res, input.username, input.password);
   }
   @Post('logout')
   logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<AccessSession> {
@@ -36,7 +55,7 @@ export class AccessController {
   }
 }
 
-// Access-code sessions are the approved identity boundary. No ownerId is accepted from a client.
+// Anonymous cookie sessions isolate visitors. No ownerId is accepted from a client.
 @Controller('api/research')
 @UseGuards(SessionGuard)
 export class ResearchController {
