@@ -8,13 +8,10 @@ import type { EChartsOption } from 'echarts';
 import type { MetricEvidence, StockCompareResponse, StockFacts } from '../../../../shared/api.interface';
 import { formatValue, METRICS, METRIC_MAP } from '../../../../shared/metric-catalog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { VerdictBadge } from './ResultsPanel';
+import VerdictBadge from './VerdictBadge';
+import { displayTime } from './research-format';
 
 echarts.use([LineChart, GridComponent, TooltipComponent, AriaComponent, SVGRenderer]);
-export function displayTime(value: string | null): string {
-  if (!value) return '未提供';
-  return new Date(value).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
-}
 const Prices: React.FC<{ stock: StockFacts }> = ({ stock }) => {
   if (!stock.prices.length) return <div className="flex h-44 items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground">历史日线暂不可用</div>;
   const option: EChartsOption = {

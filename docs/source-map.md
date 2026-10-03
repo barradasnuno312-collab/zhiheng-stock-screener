@@ -20,6 +20,7 @@
 | 前端请求出口 | `client/src/api/research.ts` |
 | 工作台与访问入口 | `client/src/pages/research/ResearchPage.tsx` |
 | 条件、结果、证据、策略库 | 同目录 `ConditionEditor`、`ResultsPanel`、`EvidenceDialog`、`StrategyLibrary` |
+| CSV、条件分享、显示格式 | 同目录 `research-io.ts`、`research-format.ts` |
 
 后端表结构由平台生成：`server/database/schema.ts`。业务模块在 `server/app.module.ts` 中注册，位于View fallback之前。
 
@@ -39,6 +40,7 @@
 | POST `/api/research/runs/:id/stocks` | 1只详情或2—3只比较 |
 | GET/POST `/api/research/versions` | 列出/保存自己的版本 |
 | GET `/api/research/versions/:id` | 恢复条件、结果与数据版本 |
+| GET `/api/research/versions/:id/replay` | 用固定版本复算最多7个真实保留快照，不计算收益 |
 | GET/POST `/api/research/monitors` | 列出/创建自己的监控 |
 | PATCH `/api/research/monitors/:id` | 启停固定版本监控 |
 | POST `/api/research/monitors/:id/check` | 手动检查及事件 |
@@ -65,6 +67,7 @@
 | --- | --- |
 | 条件值比较修复、桌面主流程验收 | 提交 `d907fa8fe81bcc6c34576af159fcfd526bb567ea`；release `7692066895445544139`，finished |
 | 代码与实际页面一致性 | Chrome加载脚本URL包含该完整提交ID，保存与恢复流程已通过 |
+| 性能、WCAG、移动结果、导出分享与快照复盘 | 提交 `6ef543bda38ae391c5d6ba8cbccf0308b9a97b69`；release `7692107995401112862`，finished |
 
 公开源码：[barradasnuno312-collab/zhiheng-stock-screener](https://github.com/barradasnuno312-collab/zhiheng-stock-screener)。匿名仓库访问、`git ls-remote`及原始README读取已验证。
 

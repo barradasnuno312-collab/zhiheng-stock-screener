@@ -20,16 +20,16 @@
   --secondary: hsl(220 14% 96%);
   --secondary-foreground: hsl(220 14% 14%);
   --muted: hsl(180, 9%, 95%);
-  --muted-foreground: hsl(193, 8%, 45%);
+  --muted-foreground: hsl(193, 10%, 40%);
   --accent: hsl(220 14% 96%);
   --accent-foreground: hsl(220 14% 14%);
   --info: hsl(221 83% 53%);
   --info-foreground: hsl(230 100% 98%);
-  --destructive: hsl(2 84% 62%);
+  --destructive: hsl(2 72% 42%);
   --destructive-foreground: hsl(0 0% 100%);
-  --success: hsl(130 54% 42%);
+  --success: hsl(130 54% 31%);
   --success-foreground: hsl(115 77% 97%);
-  --warning: hsl(26 90% 49%);
+  --warning: hsl(26 90% 34%);
   --warning-foreground: hsl(33 100% 96%);
   --border: hsl(220 14% 89%);
   --input: hsl(220 14% 89%);
@@ -51,7 +51,7 @@
   /* Computed borders using hsl relative color syntax */
   --primary-border: hsl(from hsl(165 44% 27%) h s calc(l + var(--opaque-button-border-intensity)));
   --secondary-border: hsl(from hsl(220 14% 96%) h s calc(l + var(--opaque-button-border-intensity)));
-  --destructive-border: hsl(from hsl(2 84% 62%) h s calc(l + var(--opaque-button-border-intensity)));
+  --destructive-border: hsl(from hsl(2 72% 42%) h s calc(l + var(--opaque-button-border-intensity)));
   --accent-border: hsl(from hsl(220 14% 96%) h s calc(l + var(--opaque-button-border-intensity)));
   --muted-border: hsl(from hsl(220 14% 96%) h s calc(l + var(--opaque-button-border-intensity)));
   --font-sans:

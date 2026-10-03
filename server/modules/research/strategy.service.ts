@@ -2,14 +2,14 @@ import { BadRequestException, ConflictException, Inject, Injectable } from '@nes
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type {
-  CompareRequest, LoadVersionResponse, RunComparison, SavedVersion, SaveStrategyRequest,
-  ScreenRequest, ScreenRun, StockCompareResponse,
+  CompareRequest, LoadVersionResponse, ResultChange, RunComparison, SavedVersion, SaveStrategyRequest,
+  ScreenRequest, ScreenRun, SnapshotReplay, StockCompareResponse,
 } from '../../../shared/api.interface';
 import { detectConflicts, saveRequestSchema, screenRequestSchema } from '../../../shared/validation';
 import { StorageService } from './storage.service';
 import { DatasetService } from './dataset.service';
-import { conditionEffects, screen } from './screening';
-import { validate } from './research-utils';
+import { conditionEffects, resultChanges, screen } from './screening';
+import { stableId, validate } from './research-utils';
 
 @Injectable()
 export class StrategyService {
@@ -81,5 +81,29 @@ export class StrategyService {
   async loadVersion(ownerId: string, id: string): Promise<LoadVersionResponse> {
     const version: SavedVersion = await this.storage.getObject(validate(z.uuid(), id), 'version', ownerId);
     return { version, run: await this.run(ownerId, version.runId) };
+  }
+  async replay(ownerId: string, id: string): Promise<SnapshotReplay> {
+    const version: SavedVersion = await this.storage.getObject(validate(z.uuid(), id), 'version', ownerId);
+    const summaries = (await this.datasets.list(7))
+      .filter((snapshot) => ['ready', 'partial'].includes(snapshot.status))
+      .sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt));
+    const runs: ScreenRun[] = await Promise.all(summaries.map(async (summary) =>
+      screen(await this.datasets.load(summary.id), version.conditions,
+        stableId(version.id, `replay:${summary.id}`), summary.fetchedAt, version.intent)));
+    return {
+      versionId: version.id,
+      strategyName: `${version.name} · v${version.version}`,
+      entries: runs.map((run, index) => {
+        const changes: ResultChange[] = index ? resultChanges(runs[index - 1].results, run.results) : [];
+        return {
+          snapshot: run.snapshot, coverage: run.coverage, changedCount: changes.length,
+          entered: changes.filter((change) => change.after === 'pass' && change.before !== 'pass').length,
+          exited: changes.filter((change) => change.before === 'pass' && change.after === 'fail').length,
+          becameUnknown: changes.filter((change) => change.after === 'unknown').length,
+          examples: changes.slice(0, 10),
+        };
+      }),
+      note: '仅复算系统真实保留的数据快照，不补造历史成分，不计算收益率；快照不足时只展示已有记录。',
+    };
   }
 }

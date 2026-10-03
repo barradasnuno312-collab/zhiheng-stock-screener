@@ -1,5 +1,5 @@
 import type {
-  Condition, ConditionResult, DatasetSnapshot, ResultChange, RunComparison,
+  Condition, ConditionResult, DatasetSnapshot, MetricEvidence, MetricId, ResultChange, RunComparison,
   ScreenRun, SnapshotSummary, StockFacts, StockResult, Verdict,
 } from '../../../shared/api.interface';
 import { formatValue, METRIC_MAP, OPERATOR_LABELS, RULES_VERSION } from '../../../shared/metric-catalog';
@@ -25,10 +25,21 @@ export function conditionLabel(condition: Condition): string {
     : `${OPERATOR_LABELS[condition.operator]} ${formatValue(condition.value, metric.unit)}`;
   return `${metric.name} ${threshold}`;
 }
+function unavailableMetric(stock: StockFacts, metricId: MetricId): MetricEvidence {
+  const existing = Object.values(stock.metrics)[0];
+  return {
+    metricId, value: null, unit: METRIC_MAP[metricId].unit, status: 'missing',
+    reason: '当前数据快照生成时尚未包含该指标，请在新快照就绪后使用',
+    inputs: [], reportPeriod: null, disclosureDate: null, quoteDate: null,
+    fetchedAt: existing?.fetchedAt ?? new Date(0).toISOString(), timestampScope: 'unknown',
+    sourceEndpoint: '', requestId: null, sourceTimestamp: null, formulaVersion: RULES_VERSION,
+  };
+}
 export function evaluateStock(stock: StockFacts, conditions: Condition[]): StockResult {
   const evaluations: ConditionResult[] = conditions.filter((condition: Condition) => condition.enabled)
     .map((condition: Condition): ConditionResult => {
-      const evidence = stock.metrics[condition.metricId];
+      const evidence = (stock.metrics as Partial<Record<MetricId, MetricEvidence>>)[condition.metricId]
+        ?? unavailableMetric(stock, condition.metricId);
       const known: boolean = evidence.status === 'available'
         && evidence.value !== null && Number.isFinite(evidence.value);
       const verdict: Verdict = known

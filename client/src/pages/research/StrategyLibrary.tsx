@@ -1,10 +1,9 @@
 import React from 'react';
-import { Bell, Bookmark, Clock3, FolderOpen, Play, RefreshCw } from 'lucide-react';
+import { Bell, Bookmark, Clock3, FolderOpen, History, Play, RefreshCw } from 'lucide-react';
 import type { Monitor, SavedVersion } from '../../../../shared/api.interface';
 import { Button } from '../../components/ui/button';
 import { Switch } from '../../components/ui/switch';
-import { displayTime } from './EvidenceDialog';
-import { VERDICT_LABEL } from './ResultsPanel';
+import { displayTime, VERDICT_LABEL } from './research-format';
 
 interface StrategyLibraryProps {
   versions: SavedVersion[];
@@ -15,6 +14,7 @@ interface StrategyLibraryProps {
   onMonitor: (id: string) => void;
   onCheck: (id: string) => void;
   onToggle: (id: string, enabled: boolean) => void;
+  onReplay: (id: string) => void;
 }
 const StrategyLibrary: React.FC<StrategyLibraryProps> = (props) => {
   const groups: Map<string, SavedVersion[]> = new Map();
@@ -34,6 +34,7 @@ const StrategyLibrary: React.FC<StrategyLibraryProps> = (props) => {
           <p className="mt-2 text-xs text-muted-foreground">行情 {versions[0].snapshot.quoteDate} · {versions[0].conditions.filter((item) => item.enabled).length}条条件 · {displayTime(versions[0].createdAt)}</p>
         </div><div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={props.busy} onClick={() => props.onLoad(versions[0].id)}><Play />恢复版本</Button>
+          <Button size="sm" variant="outline" disabled={props.busy} onClick={() => props.onReplay(versions[0].id)}><History />历史复盘</Button>
           <Button size="sm" disabled={props.busy} onClick={() => props.onMonitor(versions[0].id)}><Bell />监控此版本</Button>
         </div></div>
         {versions.length > 1 && <details className="mt-4 text-xs text-muted-foreground"><summary className="cursor-pointer">历史版本（{versions.length - 1}）</summary>

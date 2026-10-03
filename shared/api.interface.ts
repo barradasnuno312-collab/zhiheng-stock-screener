@@ -2,7 +2,7 @@
 export const METRIC_IDS = [
   'revenue_yoy_pct', 'revenue_yoy_delta_pp', 'parent_profit_yoy_pct',
   'pe_ttm', 'pb_mrq', 'volatility_60d_pct', 'max_drawdown_60d_pct',
-  'avg_turnover_20d_cny',
+  'avg_turnover_20d_cny', 'return_20d_pct', 'price_vs_ma20_pct',
 ] as const;
 export type MetricId = typeof METRIC_IDS[number];
 export type Operator = 'gt' | 'gte' | 'lt' | 'lte' | 'between';
@@ -215,6 +215,21 @@ export interface StockCompareResponse {
 export interface LoadVersionResponse {
   version: SavedVersion;
   run: ScreenRun;
+}
+export interface SnapshotReplayEntry {
+  snapshot: SnapshotSummary;
+  coverage: ScreenRun['coverage'];
+  changedCount: number;
+  entered: number;
+  exited: number;
+  becameUnknown: number;
+  examples: ResultChange[];
+}
+export interface SnapshotReplay {
+  versionId: string;
+  strategyName: string;
+  entries: SnapshotReplayEntry[];
+  note: string;
 }
 export interface CreateMonitorRequest {
   versionId: string;

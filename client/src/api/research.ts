@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios';
 import type {
   AccessSession, CatalogResponse, CompareRequest, JobStatus, LoadVersionResponse,
   Monitor, MonitorEvent, ParseRequest, RunComparison, SavedVersion, SaveStrategyRequest,
-  ScreenRequest, ScreenRun, StockCompareResponse,
+  ScreenRequest, ScreenRun, SnapshotReplay, StockCompareResponse,
 } from '../../../shared/api.interface';
 
 async function request<T>(url: string, method: 'GET' | 'POST' | 'PATCH', data?: unknown): Promise<T> {
@@ -24,6 +24,7 @@ export const stocks = (runId: string, codes: string[]): Promise<StockCompareResp
 export const versions = (): Promise<SavedVersion[]> => request('/api/research/versions', 'GET');
 export const save = (data: SaveStrategyRequest): Promise<SavedVersion> => request('/api/research/versions', 'POST', data);
 export const load = (id: string): Promise<LoadVersionResponse> => request(`/api/research/versions/${id}`, 'GET');
+export const replay = (id: string): Promise<SnapshotReplay> => request(`/api/research/versions/${id}/replay`, 'GET');
 export const monitors = (): Promise<Monitor[]> => request('/api/research/monitors', 'GET');
 export const createMonitor = (versionId: string): Promise<Monitor> =>
   request('/api/research/monitors', 'POST', { versionId });

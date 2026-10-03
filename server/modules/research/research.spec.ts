@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  completedTradingDays, emptyEvidence, financialMetrics, numeric, priceMetrics, valuationMetric,
+  completedTradingDays, deriveRecentPriceMetrics, emptyEvidence, financialMetrics, numeric, priceMetrics,
+  valuationMetric,
 } from './metrics';
 import type { FinancialReport, SourceMeta } from './metrics';
 import { METRICS, METRIC_MAP } from '../../../shared/metric-catalog';
@@ -106,6 +107,25 @@ test('flat price window produces zero volatility and drawdown, not missing', () 
   assert.equal(values.volatility_60d_pct.value, 0);
   assert.equal(values.max_drawdown_60d_pct.value, 0);
   assert.equal(values.avg_turnover_20d_cny.value, 10000);
+  assert.equal(values.return_20d_pct.value, 0);
+  assert.equal(values.price_vs_ma20_pct.value, 0);
+});
+test('20-day return and moving-average distance use exact consecutive windows', () => {
+  const trend: PricePoint[] = points.map((point, index) =>
+    ({ ...point, close: index < 40 ? 100 : 100 + index - 40 }));
+  const values = priceMetrics(trend, days, meta);
+  assert.ok(Math.abs(values.return_20d_pct.value! - 20) < 1e-10);
+  assert.ok(Math.abs(values.price_vs_ma20_pct.value! - (120 / 110.5 - 1) * 100) < 1e-10);
+  assert.equal(values.return_20d_pct.inputs.length, 21);
+  assert.equal(values.price_vs_ma20_pct.inputs.length, 20);
+});
+test('new price metrics can be derived from a legacy snapshot validated price window', () => {
+  const trend: PricePoint[] = points.map((point, index) =>
+    ({ ...point, close: index < 40 ? 100 : 100 + index - 40 }));
+  const values = priceMetrics(trend, days, meta);
+  const derived = deriveRecentPriceMetrics(values.volatility_60d_pct);
+  assert.ok(Math.abs(derived.return_20d_pct.value! - 20) < 1e-10);
+  assert.ok(Math.abs(derived.price_vs_ma20_pct.value! - (120 / 110.5 - 1) * 100) < 1e-10);
 });
 test('60 returns use sample variance and 252 annualization', () => {
   let close = 100;
@@ -181,6 +201,17 @@ test('fail plus unknown remains excluded and retains unknown evidence', () => {
   assert.equal(run.results[0].verdict, 'fail');
   assert.equal(run.results[0].conditions[1].verdict, 'unknown');
   assert.equal(run.results[0].onlyOneFailure, false);
+});
+test('new metrics remain unknown on older immutable snapshots instead of crashing', () => {
+  const legacy = stock('S1', 10);
+  delete (legacy.metrics as Partial<StockFacts['metrics']>).return_20d_pct;
+  const condition: Condition = {
+    ...pe('return', 'gt', 0), metricId: 'return_20d_pct', unit: '%',
+    basis: METRIC_MAP.return_20d_pct.basis,
+  };
+  const run = screen(snapshot([legacy]), [condition], 'legacy-run', 't');
+  assert.equal(run.results[0].verdict, 'unknown');
+  assert.match(run.results[0].conditions[0].evidence.reason, /尚未包含/);
 });
 test('empty, conflicting and incomplete universe screens stop before producing results', () => {
   const data = snapshot([stock('S1', 10)]);

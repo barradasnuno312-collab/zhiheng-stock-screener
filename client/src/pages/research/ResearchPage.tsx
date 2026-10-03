@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
   ArrowDownToLine, ArrowRight, BookOpen, Check, Compass, Database, Layers3,
-  LoaderCircle, LockKeyhole, RefreshCw, Search, ShieldCheck, Sparkles,
+  LoaderCircle, LockKeyhole, RefreshCw, Search, Share2, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import type {
   CatalogResponse, Condition, IntentDraft, JobStatus, Monitor, RunComparison,
-  SavedVersion, ScreenRun, SnapshotSummary, StockCompareResponse,
+  SavedVersion, ScreenRun, SnapshotReplay, SnapshotSummary, StockCompareResponse,
 } from '../../../../shared/api.interface';
 import { METRIC_MAP, OPERATOR_LABELS } from '../../../../shared/metric-catalog';
 import { conditionsSchema, detectConflicts, sameConditions } from '../../../../shared/validation';
@@ -19,9 +19,14 @@ import { Checkbox } from '../../components/ui/checkbox';
 import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import ConditionEditor from './ConditionEditor';
-import ResultsPanel, { VERDICT_LABEL } from './ResultsPanel';
-import EvidenceDialog from './EvidenceDialog';
-import StrategyLibrary from './StrategyLibrary';
+import { VERDICT_LABEL } from './research-format';
+import { buildShareUrl, decodeSharedScreen } from './research-io';
+
+const ResultsPanel = lazy(() => import('./ResultsPanel'));
+const EvidenceDialog = lazy(() => import('./EvidenceDialog'));
+const StrategyLibrary = lazy(() => import('./StrategyLibrary'));
+const INITIAL_SHARED_SCREEN = typeof window === 'undefined' ? null
+  : decodeSharedScreen(new URLSearchParams(window.location.search).get('screen'));
 
 const EXAMPLES: string[] = [
   '经营改善、估值不要太贵、最近走势相对稳定的公司',
@@ -32,6 +37,19 @@ function label(condition: Condition): string {
   return `${METRIC_MAP[condition.metricId].name} ${OPERATOR_LABELS[condition.operator]} ${condition.value}${
     condition.operator === 'between' ? `～${condition.upperValue}` : ''}${condition.unit}${condition.enabled ? '' : '（停用）'}`;
 }
+const WorkspaceSkeleton: React.FC = () => <div aria-busy="true" aria-label="正在载入研究工作台" className="space-y-6">
+  <p className="text-sm text-muted-foreground">正在同步数据版本、策略和最近结果…</p>
+  <div className="grid gap-6 lg:grid-cols-[0.85fr_1.4fr]">
+    <div className="space-y-3 py-3"><div className="h-3 w-36 animate-pulse rounded bg-muted" />
+      <div className="h-10 w-64 animate-pulse rounded bg-muted" /><div className="h-4 w-56 animate-pulse rounded bg-muted" /></div>
+    <div className="h-52 animate-pulse rounded-lg border bg-card" />
+  </div>
+  <div className="h-14 animate-pulse rounded-lg border bg-card" />
+  <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="h-80 animate-pulse rounded-lg border bg-card" />
+    <div className="h-96 animate-pulse rounded-lg border bg-card" />
+  </div>
+</div>;
 const ResearchPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,8 +60,8 @@ const ResearchPage: React.FC = () => {
   const [snapshot, setSnapshot] = useState<SnapshotSummary | null>(null);
   const [versions, setVersions] = useState<SavedVersion[]>([]);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
-  const [text, setText] = useState('');
-  const [conditions, setConditions] = useState<Condition[]>([]);
+  const [text, setText] = useState(INITIAL_SHARED_SCREEN?.intent ?? '');
+  const [conditions, setConditions] = useState<Condition[]>(INITIAL_SHARED_SCREEN?.conditions ?? []);
   const [draft, setDraft] = useState<IntentDraft | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [job, setJob] = useState<JobStatus | null>(null);
@@ -51,6 +69,7 @@ const ResearchPage: React.FC = () => {
   const [comparison, setComparison] = useState<RunComparison | null>(null);
   const [beforeRun, setBeforeRun] = useState<ScreenRun | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [replay, setReplay] = useState<SnapshotReplay | null>(null);
   const [evidence, setEvidence] = useState<StockCompareResponse | null>(null);
   const [activeVersion, setActiveVersion] = useState<SavedVersion | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -58,19 +77,13 @@ const ResearchPage: React.FC = () => {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(INITIAL_SHARED_SCREEN ? '已载入分享的筛选条件，请核对后执行。' : '');
+  const [booting, setBooting] = useState(true);
   const parsing: boolean = !!job && ['pending', 'running'].includes(job.status);
   const dirty: boolean = !!run && !sameConditions(conditions, run.conditions);
   const executable: boolean = !!snapshot && confirmed && conditions.some((item) => item.enabled)
     && conditionsSchema.safeParse(conditions).success && !detectConflicts(conditions).length && !busy && !parsing;
 
-  async function loadResources(): Promise<void> {
-    const data = await api.catalog();
-    setCatalog(data);
-    setSnapshot((previous) => previous ?? data.snapshot);
-    setVersions(await api.versions());
-    setMonitors(await api.monitors());
-  }
   async function perform(name: string, action: () => Promise<void>): Promise<void> {
     setBusy(name); setError(''); setNotice('');
     try { await action(); } catch (failure: unknown) { setError(api.errorMessage(failure)); }
@@ -78,36 +91,40 @@ const ResearchPage: React.FC = () => {
   }
   useEffect(() => {
     let mounted = true;
-    void (async () => {
-      try {
-        const session = await api.session();
-        if (!mounted) return;
-        setAuthorized(session.authorized);
-        if (!session.authorized) return;
-        await loadResources();
-        const previousId: string | null = sessionStorage.getItem('zh-last-run');
-        if (previousId) {
-          const previous = await api.run(previousId);
-          if (!mounted) return;
-          setRun(previous); setConditions(previous.conditions); setSnapshot(previous.snapshot);
-          setText(previous.intent); setConfirmed(true);
-        }
-        const jobId: string | null = sessionStorage.getItem('zh-intent-job');
-        if (jobId && mounted) {
-          const restored: JobStatus = await api.job(jobId);
-          if (!mounted) return;
-          setJob(restored);
-          if (restored.status === 'succeeded' && restored.result && 'conditions' in restored.result) {
-            setDraft(restored.result); setConditions(restored.result.conditions); setConfirmed(false);
-            sessionStorage.removeItem('zh-intent-job');
-          } else if (restored.status === 'failed') {
-            setError(restored.message); sessionStorage.removeItem('zh-intent-job');
-          }
-        }
-      } catch (failure: unknown) { if (mounted) setError(api.errorMessage(failure)); }
-    })();
+    void api.session().then((session) => { if (mounted) setAuthorized(session.authorized); })
+      .catch((failure: unknown) => { if (mounted) { setAuthorized(false); setError(api.errorMessage(failure)); } });
     return () => { mounted = false; };
   }, []);
+  useEffect(() => {
+    if (authorized !== true) { if (authorized === false) setBooting(false); return; }
+    let mounted = true;
+    setBooting(true);
+    const previousId: string | null = INITIAL_SHARED_SCREEN ? null : sessionStorage.getItem('zh-last-run');
+    const jobId: string | null = INITIAL_SHARED_SCREEN ? null : sessionStorage.getItem('zh-intent-job');
+    void Promise.all([
+      api.catalog(), api.versions(), api.monitors(),
+      previousId ? api.run(previousId).catch(() => null) : Promise.resolve(null),
+      jobId ? api.job(jobId).catch(() => null) : Promise.resolve(null),
+    ]).then(([data, nextVersions, nextMonitors, previous, restored]) => {
+      if (!mounted) return;
+      setCatalog(data); setVersions(nextVersions); setMonitors(nextMonitors);
+      setSnapshot(previous?.snapshot ?? data.snapshot);
+      if (previous) {
+        setRun(previous); setConditions(previous.conditions); setText(previous.intent); setConfirmed(true);
+      }
+      if (restored) {
+        setJob(restored);
+        if (restored.status === 'succeeded' && restored.result && 'conditions' in restored.result) {
+          setDraft(restored.result); setConditions(restored.result.conditions); setConfirmed(false);
+          sessionStorage.removeItem('zh-intent-job');
+        } else if (restored.status === 'failed') {
+          setError(restored.message); sessionStorage.removeItem('zh-intent-job');
+        }
+      }
+    }).catch((failure: unknown) => { if (mounted) setError(api.errorMessage(failure)); })
+      .finally(() => { if (mounted) setBooting(false); });
+    return () => { mounted = false; };
+  }, [authorized]);
   useEffect(() => {
     if (!job || !parsing) return;
     let mounted = true;
@@ -160,6 +177,14 @@ const ResearchPage: React.FC = () => {
     setActiveVersion(version); setVersions(await api.versions()); setSaveOpen(false);
     setNotice(`已保存“${version.name}”v${version.version}，可到策略库开启监控。`);
   }); };
+  const share = (): void => { void perform('复制条件链接', async () => {
+    if (!conditions.length) throw new Error('请先生成或添加筛选条件');
+    await navigator.clipboard.writeText(buildShareUrl(text, conditions, window.location.href));
+    setNotice('条件分享链接已复制。链接不包含访问码、股票名单或历史结果。');
+  }); };
+  const replayVersion = (id: string): void => { void perform('历史快照复盘', async () => {
+    setReplay(await api.replay(id));
+  }); };
 
   if (authorized !== true) return <main className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
     <section className="flex flex-col justify-between bg-sidebar p-8 text-sidebar-foreground sm:p-14 lg:p-20">
@@ -175,7 +200,7 @@ const ResearchPage: React.FC = () => {
         <p className="text-xs tracking-widest text-muted-foreground">REVIEW ACCESS</p><h2 className="mt-3 text-2xl font-semibold">进入研究工作台</h2>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">输入作品访问码，开始一次独立的研究会话。</p>
         <form className="mt-8 space-y-4" onSubmit={loginForm.handleSubmit(({ code }) => perform('验证访问码', async () => {
-          await api.login(code); loginForm.reset(); setAuthorized(true); await loadResources();
+          await api.login(code); loginForm.reset(); setBooting(true); setAuthorized(true);
         }))}>
           <label htmlFor="access-code" className="text-sm font-medium">访问码</label>
           <Input id="access-code" type="password" autoComplete="current-password" placeholder="请输入访问码"
@@ -191,36 +216,41 @@ const ResearchPage: React.FC = () => {
   </main>;
 
   return <div className="min-h-screen bg-background text-foreground">
+    <a href="#research-main" className="sr-only z-50 rounded-md bg-card px-4 py-3 text-sm font-medium text-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+      跳到研究内容
+    </a>
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col items-center gap-8 border-r bg-sidebar py-7 text-sidebar-foreground md:flex">
-      <NavLink to="/" aria-label="知衡首页"><Compass className="size-8" strokeWidth={1.6} /></NavLink>
+      <NavLink to="/" aria-label="知衡首页" className="rounded-md focus-visible:!outline-sidebar-foreground"><Compass className="size-8" strokeWidth={1.6} /></NavLink>
       <nav className="flex flex-col gap-4">
-        <NavLink to="/" end className={({ isActive }) => `rounded-xl p-3 ${isActive ? 'bg-white/15' : 'opacity-50 hover:opacity-100'}`} aria-label="选股工作台"><Search size={21} /></NavLink>
-        <NavLink to="/strategies" className={({ isActive }) => `rounded-xl p-3 ${isActive ? 'bg-white/15' : 'opacity-50 hover:opacity-100'}`} aria-label="策略与监控"><Layers3 size={21} /></NavLink>
+        <NavLink to="/" end className={({ isActive }) => `rounded-lg p-3 focus-visible:!outline-sidebar-foreground ${isActive ? 'bg-white/15' : 'opacity-60 hover:opacity-100'}`} aria-label="选股工作台"><Search size={21} /></NavLink>
+        <NavLink to="/strategies" className={({ isActive }) => `rounded-lg p-3 focus-visible:!outline-sidebar-foreground ${isActive ? 'bg-white/15' : 'opacity-60 hover:opacity-100'}`} aria-label="策略与监控"><Layers3 size={21} /></NavLink>
       </nav>
-      <Button className="mt-auto text-sidebar-foreground opacity-60" size="icon" variant="ghost" aria-label="方法与边界" onClick={() => setAboutOpen(true)}><BookOpen /></Button>
+      <Button className="mt-auto text-sidebar-foreground opacity-70 focus-visible:!outline-sidebar-foreground" size="icon" variant="ghost" aria-label="方法与边界" onClick={() => setAboutOpen(true)}><BookOpen /></Button>
     </aside>
     <div className="md:ml-20">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b bg-card px-5 py-4 lg:px-10">
         <div className="flex items-center gap-5"><NavLink to="/" className="text-xl font-semibold tracking-[0.2em]">知衡</NavLink>
           <span className="hidden border-l pl-5 text-xs text-muted-foreground sm:block">自然语言选股与策略解释器</span></div>
-        <nav className="flex items-center gap-4 text-sm"><NavLink to="/" end className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground'}>工作台</NavLink>
-          <NavLink to="/strategies" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground'}>策略与监控</NavLink>
+        <nav className="flex items-center gap-2 text-sm"><NavLink to="/" end className={({ isActive }) => `flex min-h-11 items-center px-2 md:hidden ${isActive ? 'font-medium text-primary' : 'text-muted-foreground'}`}>工作台</NavLink>
+          <NavLink to="/strategies" className={({ isActive }) => `flex min-h-11 items-center px-2 md:hidden ${isActive ? 'font-medium text-primary' : 'text-muted-foreground'}`}>策略与监控</NavLink>
           <Button variant="ghost" size="icon" aria-label="数据与方法" onClick={() => setAboutOpen(true)}><BookOpen /></Button></nav>
       </header>
-      <main className="mx-auto max-w-[1600px] space-y-6 p-5 lg:p-10">
+      <main id="research-main" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-6 p-5 lg:p-10">
         {error && <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>}
         {notice && <div role="status" className="rounded-lg border border-primary/15 bg-primary/5 p-4 text-sm text-primary">{notice}</div>}
-        {isLibrary ? <StrategyLibrary versions={versions} monitors={monitors} scheduleEnabled={catalog?.scheduleEnabled ?? false}
+        <Suspense fallback={<WorkspaceSkeleton />}>
+        {booting ? <WorkspaceSkeleton /> : isLibrary ? <StrategyLibrary versions={versions} monitors={monitors} scheduleEnabled={catalog?.scheduleEnabled ?? false}
           busy={!!busy} onLoad={loadVersion}
           onMonitor={(id) => { void perform('创建监控', async () => { await api.createMonitor(id); setMonitors(await api.monitors()); setNotice('已保存监控设置。'); }); }}
           onCheck={(id) => { void perform('检查条件', async () => { const event = await api.check(id); setMonitors(await api.monitors()); setNotice(event?.message ?? '检查完成'); }); }}
-          onToggle={(id, enabled) => { void perform('修改监控', async () => { await api.toggle(id, enabled); setMonitors(await api.monitors()); }); }} />
+          onToggle={(id, enabled) => { void perform('修改监控', async () => { await api.toggle(id, enabled); setMonitors(await api.monitors()); }); }}
+          onReplay={replayVersion} />
           : <>
             <section className="grid gap-6 lg:grid-cols-[0.85fr_1.4fr] lg:gap-12">
               <div className="py-3"><p className="text-xs font-medium tracking-[0.2em] text-primary">RESEARCH WORKSPACE</p>
                 <h1 className="mt-4 text-3xl leading-tight font-semibold tracking-tight lg:text-4xl">从一个想法，<br className="hidden lg:block" />到一组有据的条件。</h1>
                 <p className="mt-4 text-sm leading-7 text-muted-foreground">你决定研究方向，知衡把条件和证据摆在面前。</p>
-                <div className="mt-5 flex flex-wrap gap-2"><Badge variant="outline">沪深300</Badge><Badge variant="outline">8项可核查指标</Badge><Badge variant="outline">全部条件同时满足</Badge></div>
+                <div className="mt-5 flex flex-wrap gap-2"><Badge variant="outline">沪深300</Badge><Badge variant="outline">{catalog?.metrics.length ?? 10}项可核查指标</Badge><Badge variant="outline">全部条件同时满足</Badge></div>
               </div>
               <div className="rounded-xl border bg-card p-5 shadow-sm">
                 <label htmlFor="research-intent" className="flex items-center gap-2 text-sm font-medium"><Sparkles className="size-4 text-primary" />你想寻找什么样的公司？</label>
@@ -231,7 +261,7 @@ const ResearchPage: React.FC = () => {
                   <Button disabled={!!busy || parsing || text.trim().length < 2 || !catalog?.aiConfigured} onClick={doParse}>
                     {parsing ? <><LoaderCircle className="animate-spin" />正在理解</> : <><Sparkles />生成条件草稿</>}</Button></div>
                 <div className="mt-4 flex flex-wrap gap-2 border-t pt-3">{EXAMPLES.map((example, index) =>
-                  <button key={example} disabled={parsing} className="rounded-full bg-muted px-3 py-1.5 text-[11px] text-muted-foreground hover:text-primary"
+                  <button key={example} disabled={parsing} className="min-h-11 rounded-full bg-muted px-3 py-1.5 text-[11px] text-muted-foreground hover:text-primary"
                     onClick={() => setText(example)}>{['经营改善 × 稳定', '成长与估值', '回撤与流动性'][index]}</button>)}</div>
               </div>
             </section>
@@ -271,17 +301,19 @@ const ResearchPage: React.FC = () => {
                 {run && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4">
                   <div className="text-xs text-muted-foreground">{activeVersion ? `当前策略：${activeVersion.name} · v${activeVersion.version}` : '将本次结果保存为可恢复的研究版本'}</div>
                   <div className="flex flex-wrap gap-2">{comparison && <Button variant="outline" disabled={!!busy} onClick={() => setCompareOpen(true)}><Layers3 />条件影响比较</Button>}
+                    <Button variant="outline" disabled={!!busy || !conditions.length} onClick={share}><Share2 />分享条件</Button>
                     <Button disabled={!!busy || dirty} onClick={() => { setSaveName(activeVersion?.name ?? (draft?.intentSummary || '我的研究策略').slice(0, 40)); setSaveOpen(true); }}><ArrowDownToLine />保存策略</Button></div>
                 </div>}
                 <p className="px-1 text-xs leading-6 text-muted-foreground">低估值不等于低估，历史稳定不代表未来低风险。结果用于条件核验，不构成买卖建议。</p>
               </div>
             </div>
           </>}
+        </Suspense>
       </main>
       <footer className="mx-5 flex flex-wrap items-center justify-between gap-2 border-t py-6 text-[11px] text-muted-foreground lg:mx-10"><span>知衡 ZHIHENG · 把判断留给你，把依据讲清楚</span><span>数据来源：扶摇 · {catalog?.rulesVersion ?? '规则加载中'}</span></footer>
     </div>
     {busy && <div role="status" className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border bg-card px-5 py-3 text-xs shadow-lg"><LoaderCircle className="size-4 animate-spin text-primary" />{busy}</div>}
-    <EvidenceDialog data={evidence} onClose={() => setEvidence(null)} />
+    {evidence && <Suspense fallback={null}><EvidenceDialog data={evidence} onClose={() => setEvidence(null)} /></Suspense>}
     <Dialog open={saveOpen} onOpenChange={setSaveOpen}><DialogContent className="bg-card"><DialogHeader>
       <DialogTitle>保存研究策略</DialogTitle><DialogDescription>条件、结果与数据快照一起保存。后续修改会生成新的版本。</DialogDescription></DialogHeader>
       <label htmlFor="strategy-name" className="text-sm">策略名称</label><Input id="strategy-name" value={saveName} maxLength={80} onChange={(event) => setSaveName(event.target.value)} />
@@ -300,14 +332,36 @@ const ResearchPage: React.FC = () => {
         <p className="font-medium">{change.name} {change.code} · {VERDICT_LABEL[change.before]} → {VERDICT_LABEL[change.after]}</p><p className="mt-1 text-xs leading-6 text-muted-foreground">{change.reasons.join('；')}</p>
       </div>) : <p className="py-5 text-center text-sm text-muted-foreground">条件改变后，名单没有变化。</p>}</div>
     </DialogContent></Dialog>
+    <Dialog open={!!replay} onOpenChange={(open) => { if (!open) setReplay(null); }}><DialogContent className="max-h-[85vh] max-w-4xl overflow-auto bg-card">
+      <DialogHeader><DialogTitle>历史快照复盘</DialogTitle>
+        <DialogDescription>{replay?.strategyName} · 只使用系统真实保留的数据版本</DialogDescription></DialogHeader>
+      <div className="space-y-3">{replay?.entries.map((entry, index) => <section key={entry.snapshot.id} className="rounded-lg border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><h3 className="font-medium">行情 {entry.snapshot.quoteDate}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">快照 {entry.snapshot.id.slice(0, 8)} · {entry.snapshot.universeVersion}</p></div>
+          <span className="text-xs text-muted-foreground">{index ? `较上个快照变化 ${entry.changedCount} 只` : '复盘起点'}</span>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
+          {[['入选', entry.coverage.pass], ['排除', entry.coverage.fail], ['待核实', entry.coverage.unknown],
+            ['新入选', entry.entered], ['明确移出', entry.exited], ['变为待核实', entry.becameUnknown]].map(([name, value]) =>
+            <div key={name} className="rounded-md bg-muted/60 p-3"><p className="text-[11px] text-muted-foreground">{name}</p>
+              <strong className="mt-1 block text-lg tabular-nums">{value}</strong></div>)}
+        </div>
+        {!!entry.examples.length && <details className="mt-3 text-xs"><summary className="cursor-pointer">查看前{entry.examples.length}条变化示例</summary>
+          <div className="mt-2 divide-y">{entry.examples.map((change) => <p key={change.code} className="py-2 leading-5">
+            {change.name} {change.code} · {VERDICT_LABEL[change.before]} → {VERDICT_LABEL[change.after]}</p>)}</div>
+        </details>}
+      </section>)}</div>
+      <p className="text-xs leading-5 text-muted-foreground">{replay?.note}</p>
+    </DialogContent></Dialog>
     <Dialog open={aboutOpen} onOpenChange={setAboutOpen}><DialogContent className="max-h-[85vh] max-w-2xl overflow-auto bg-card"><DialogHeader><DialogTitle>方法、数据与边界</DialogTitle>
       <DialogDescription>让每一个“满足”都能沿着来源复核。</DialogDescription></DialogHeader>
       <div className="space-y-5 text-sm leading-7">
         <p>AI将自然语言转成条件草稿；用户确认后，由程序按同一快照确定性计算。全部条件满足才入选；出现明确不满足则排除；没有明确不满足但存在缺失值时，标记待核实。</p>
-        <p>首版限定执行时取得的完整沪深300成分股，支持8项指标与AND组合。财报仅使用研究时点前已披露且可比的数据。累计同比的变化不等于单季环比。</p>
+        <p>首版限定执行时取得的完整沪深300成分股，支持{catalog?.metrics.length ?? 10}项指标与AND组合。财报仅使用研究时点前已披露且可比的数据。累计同比的变化不等于单季环比。</p>
         <p>行情使用已完成交易日的前复权日线。估值使用供应商最新PE(TTM)/PB(MRQ)，接口最大时间不代表每只股票同步更新。点击个股指标可查看原始输入、日期、公式和请求来源。</p>
-        <p>支持同快照条件比较、2—3股比较、不可变策略版本、手动及定时条件检查。监控开关针对固定版本；修改策略后，需要为新版本重新创建监控。</p>
-        <p>不提供历史选股回测、未来涨跌预测、收益承诺或自动交易。仅使用当前数据研究，不能将本次名单当作历史时点的投资组合。</p>
+        <p>支持同快照条件比较、2—3股比较、不可变策略版本、历史快照复盘、手动及定时条件检查。监控开关针对固定版本；修改策略后，需要为新版本重新创建监控。</p>
+        <p>历史快照复盘只比较系统真实保留的数据版本，不计算或承诺历史收益。系统不提供未来涨跌预测、收益承诺或自动交易。</p>
         <a className="text-primary underline" href="https://fuyao.aicubes.cn/docs/" target="_blank" rel="noreferrer">查看扶摇数据接口文档</a>
       </div>
     </DialogContent></Dialog>

@@ -1,6 +1,6 @@
 import type { MetricDefinition, MetricId } from './api.interface';
 
-export const RULES_VERSION = 'zh-v1.0.0';
+export const RULES_VERSION = 'zh-v1.1.0';
 export const METRICS: MetricDefinition[] = [
   {
     id: 'revenue_yoy_pct', name: '营业收入同比', unit: '%', basis: '最新已披露累计报告期',
@@ -41,6 +41,16 @@ export const METRICS: MetricDefinition[] = [
     id: 'avg_turnover_20d_cny', name: '近20日日均成交额', unit: '元', basis: '20个连续交易日',
     description: '20个连续有效交易日成交额算术平均，原始单位为人民币元。',
     min: 0, max: 1e15,
+  },
+  {
+    id: 'return_20d_pct', name: '近20日收益率', unit: '%', basis: '21个连续交易日收盘价',
+    description: '最新前复权收盘价÷20个交易日前收盘价−1，以百分比显示；历史收益不代表未来表现。',
+    min: -100, max: 100000,
+  },
+  {
+    id: 'price_vs_ma20_pct', name: '收盘价相对20日均线', unit: '%', basis: '20个连续交易日收盘价',
+    description: '最新前复权收盘价÷近20日收盘价算术平均−1，以百分比显示。',
+    min: -100, max: 100000,
   },
 ];
 export const METRIC_MAP = Object.fromEntries(METRICS.map(

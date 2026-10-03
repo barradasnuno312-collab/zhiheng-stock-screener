@@ -166,9 +166,12 @@ function checkWindow(prices: PricePoint[], days: string[], count: number): { poi
 }
 export function priceMetrics(
   prices: PricePoint[], tradingDays: string[], meta: SourceMeta,
-): Pick<Record<MetricId, MetricEvidence>, 'volatility_60d_pct' | 'max_drawdown_60d_pct' | 'avg_turnover_20d_cny'> {
-  const calculate = (metricId: 'volatility_60d_pct' | 'max_drawdown_60d_pct' | 'avg_turnover_20d_cny'): MetricEvidence => {
-    const count: number = metricId === 'volatility_60d_pct' ? 61 : metricId === 'max_drawdown_60d_pct' ? 60 : 20;
+): Pick<Record<MetricId, MetricEvidence>,
+  'volatility_60d_pct' | 'max_drawdown_60d_pct' | 'avg_turnover_20d_cny' | 'return_20d_pct' | 'price_vs_ma20_pct'> {
+  const calculate = (metricId: 'volatility_60d_pct' | 'max_drawdown_60d_pct' | 'avg_turnover_20d_cny'
+    | 'return_20d_pct' | 'price_vs_ma20_pct'): MetricEvidence => {
+    const count: number = metricId === 'volatility_60d_pct' ? 61
+      : metricId === 'max_drawdown_60d_pct' ? 60 : metricId === 'return_20d_pct' ? 21 : 20;
     const { points, reason } = checkWindow(prices, tradingDays, count);
     const evidence: MetricEvidence = {
       ...emptyEvidence(metricId, meta), quoteDate: points.at(-1)?.date ?? null, timestampScope: 'per_bar',
@@ -186,6 +189,13 @@ export function priceMetrics(
       return finish(evidence, points.reduce((sum: number, point: PricePoint) => sum + point.turnover!, 0) / count);
     }
     const closes: number[] = points.map((point: PricePoint) => point.close!);
+    if (metricId === 'return_20d_pct') {
+      return finish(evidence, (closes.at(-1)! / closes[0] - 1) * 100);
+    }
+    if (metricId === 'price_vs_ma20_pct') {
+      const average: number = closes.reduce((sum: number, close: number) => sum + close, 0) / closes.length;
+      return finish(evidence, (closes.at(-1)! / average - 1) * 100);
+    }
     if (metricId === 'max_drawdown_60d_pct') {
       let peak: number = closes[0];
       let drawdown = 0;
@@ -205,5 +215,36 @@ export function priceMetrics(
     volatility_60d_pct: calculate('volatility_60d_pct'),
     max_drawdown_60d_pct: calculate('max_drawdown_60d_pct'),
     avg_turnover_20d_cny: calculate('avg_turnover_20d_cny'),
+    return_20d_pct: calculate('return_20d_pct'),
+    price_vs_ma20_pct: calculate('price_vs_ma20_pct'),
+  };
+}
+
+export function deriveRecentPriceMetrics(
+  source: MetricEvidence,
+): Pick<Record<MetricId, MetricEvidence>, 'return_20d_pct' | 'price_vs_ma20_pct'> {
+  const create = (metricId: 'return_20d_pct' | 'price_vs_ma20_pct', count: number): MetricEvidence => {
+    const inputs = source.inputs.filter((input) => input.rawField === 'close_price (forward)').slice(-count);
+    const evidence: MetricEvidence = {
+      ...emptyEvidence(metricId, {
+        endpoint: source.sourceEndpoint, requestId: source.requestId, fetchedAt: source.fetchedAt,
+        timestamp: source.sourceTimestamp ? new Date(source.sourceTimestamp).getTime() : null,
+      }),
+      quoteDate: inputs.at(-1)?.quoteDate ?? source.quoteDate, timestampScope: 'per_bar', inputs,
+    };
+    if (source.status !== 'available' || inputs.length !== count) {
+      return { ...evidence, reason: `需要已有快照中${count}个连续交易日的已验证收盘价` };
+    }
+    const closes = inputs.map((input) => numeric(input.rawValue));
+    if (closes.some((close) => close === null || close <= 0)) {
+      return { ...evidence, reason: '已有快照的收盘价窗口不完整' };
+    }
+    if (metricId === 'return_20d_pct') return finish(evidence, (closes.at(-1)! / closes[0]! - 1) * 100);
+    const average = closes.reduce((sum, close) => sum + close!, 0) / closes.length;
+    return finish(evidence, (closes.at(-1)! / average - 1) * 100);
+  };
+  return {
+    return_20d_pct: create('return_20d_pct', 21),
+    price_vs_ma20_pct: create('price_vs_ma20_pct', 20),
   };
 }

@@ -7,7 +7,8 @@ import { z } from 'zod';
 import type {
   AccessRequest, AccessSession, CatalogResponse, CompareRequest, CreateMonitorRequest, JobStatus,
   LoadVersionResponse, Monitor, MonitorEvent, ParseRequest, RunComparison, SavedVersion,
-  SaveStrategyRequest, ScreenRequest, ScreenRun, StockCompareResponse, ToggleMonitorRequest, RecoveryResponse,
+  SaveStrategyRequest, ScreenRequest, ScreenRun, SnapshotReplay, StockCompareResponse,
+  ToggleMonitorRequest, RecoveryResponse,
 } from '../../../shared/api.interface';
 import { METRICS, RULES_VERSION } from '../../../shared/metric-catalog';
 import { AccessService, SessionGuard } from './access.service';
@@ -87,6 +88,10 @@ export class ResearchController {
   @Get('versions/:id')
   version(@Req() req: Request, @Param('id') id: string): Promise<LoadVersionResponse> {
     return this.strategies.loadVersion(this.access.owner(req), id);
+  }
+  @Get('versions/:id/replay')
+  replay(@Req() req: Request, @Param('id') id: string): Promise<SnapshotReplay> {
+    return this.strategies.replay(this.access.owner(req), id);
   }
   @Get('monitors')
   listMonitors(@Req() req: Request): Promise<Monitor[]> { return this.monitors.list(this.access.owner(req)); }
