@@ -14,6 +14,7 @@ export interface MetricDefinition {
   name: string;
   unit: Unit;
   basis: string;
+  summary: string;
   description: string;
   min: number;
   max: number;

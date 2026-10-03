@@ -77,23 +77,23 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ run, dirty, loading, onDeta
           title={result?.explanation}>{formatValue(result?.evidence.value ?? null, result?.evidence.unit ?? '')}</span>;
       },
     })) ?? []),
-    { title: '依据', key: 'detail', width: 88, render: (_value: unknown, stock: StockResult) =>
-      <Button variant="ghost" size="sm" onClick={() => onDetail([stock.code])}>查看<ArrowRight size={13} /></Button> },
+    { title: '原因', key: 'detail', width: 104, render: (_value: unknown, stock: StockResult) =>
+      <Button variant="ghost" size="sm" onClick={() => onDetail([stock.code])}>查看原因<ArrowRight size={13} /></Button> },
   ];
   return <section className="min-w-0 rounded-xl border bg-card" aria-label="筛选结果">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
       <div><h2 className="font-semibold">筛选结果</h2><p className="mt-1 text-xs text-muted-foreground">
-        {run ? `${run.snapshot.universeName} · ${run.coverage.total}只 · 行情 ${run.snapshot.quoteDate}` : '条件确认后，生成逐项可解释的股票名单'}</p></div>
+        {run ? `${run.snapshot.universeName} · ${run.coverage.total}只 · 行情 ${run.snapshot.quoteDate}` : '筛选后可逐只查看入选、排除或待核实原因'}</p></div>
       <div className="flex flex-wrap gap-2">
         {run && <Button variant="outline" size="sm" disabled={!rows.length || loading}
-          aria-label={`导出当前${rows.length}条结果为CSV`} onClick={exportCsv}><Download />导出当前结果</Button>}
+          aria-label={`导出当前${rows.length}条结果为CSV`} onClick={exportCsv}><Download />导出</Button>}
         <Button variant="outline" size="sm" disabled={selected.length < 2 || loading}
           onClick={() => onDetail(selected.map(String))}><Columns3 />
-          {selected.length ? `比较 ${selected.length} 只股票` : '选择2—3只比较'}</Button>
+          {selected.length ? `比较 ${selected.length} 只` : '比较2—3只'}</Button>
       </div>
     </div>
     {dirty && run && <div className="border-b bg-warning/5 px-5 py-3 text-xs text-warning">
-      条件已修改，下方仍是上一次执行结果。重新执行后可比较变化。</div>}
+      条件已修改，当前仍显示上次结果。重新筛选后可查看变化。</div>}
     {run ? <>
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <div role="tablist" aria-label="结果分类" className="flex flex-wrap gap-1">
@@ -127,7 +127,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ run, dirty, loading, onDeta
               </div>;
             })}
           </dl>
-          {enabledConditions.length > 2 && <p className="mt-2 text-xs text-muted-foreground">另有{enabledConditions.length - 2}项条件，打开依据查看</p>}
+          {enabledConditions.length > 2 && <p className="mt-2 text-xs text-muted-foreground">另有{enabledConditions.length - 2}项条件，打开详情查看</p>}
           <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
             <label className="flex min-h-11 items-center gap-2 text-xs">
               <Checkbox checked={selected.includes(stock.code)}
@@ -136,7 +136,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ run, dirty, loading, onDeta
                 aria-label={`选择${stock.name}比较`} />
               加入比较
             </label>
-            <Button variant="ghost" size="sm" onClick={() => onDetail([stock.code])}>查看依据<ArrowRight /></Button>
+            <Button variant="ghost" size="sm" onClick={() => onDetail([stock.code])}>查看原因<ArrowRight /></Button>
           </div>
         </article>)}
         {!mobileRows.length && <div className="py-10 text-center text-sm text-muted-foreground">当前分类没有匹配股票。</div>}
@@ -159,18 +159,21 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ run, dirty, loading, onDeta
             }) }}
           pagination={{ pageSize: 15, showSizeChanger: false, showTotal: (total: number) => `共 ${total} 只` }}
           locale={{ emptyText: <div className="py-9 text-sm">当前条件下没有{tab === 'pass' ? '入选' : ''}股票。
-            {tab === 'pass' && <p className="mt-2 text-xs">查看排除依据或“只差一条”，再按研究目的调整条件。</p>}</div> }} />
+            {tab === 'pass' && <p className="mt-2 text-xs">查看排除原因或“只差一条”，再按研究目的调整条件。</p>}</div> }} />
       </div>
-      <p className="border-t px-5 py-3 text-xs leading-5 text-muted-foreground">
-        {run.coverage.complete}/{run.coverage.total}只的全部启用指标可判定 · “—”表示缺失或不适用 · 数值不是推荐排序分数
-      </p>
+      <div className="border-t px-5 py-3 text-xs leading-5 text-muted-foreground">
+        <p>{run.coverage.complete}/{run.coverage.total}只的全部启用指标可判定 · “—”表示缺失或不适用 · 数值不是推荐排序分数</p>
+        <details className="mt-1"><summary className="min-h-11 cursor-pointer py-3">结果分类说明</summary>
+          <p className="mt-1">入选：全部条件满足；排除：至少一条不满足；待核实：没有已知不满足，但存在缺失数据；只差一条：仅一条条件不满足。</p>
+        </details>
+      </div>
     </> : <div className="flex min-h-96 flex-col items-center justify-center px-6 py-12 text-center">
       <div className="mb-5 rounded-2xl bg-muted p-5"><SearchCheck className="size-9 text-primary" strokeWidth={1.4} /></div>
-      <h3 className="text-lg font-medium">先把想法变成条件</h3>
+      <h3 className="text-lg font-medium">从一个想法开始</h3>
       <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-        描述你关注的增长、估值或历史波动。确认条件后，每只股票都会显示入选、排除或待核实的依据。</p>
+        描述你关注的增长、估值或价格表现，生成条件后即可筛选并查看原因。</p>
       <div className="mt-8 flex flex-wrap justify-center gap-5 text-xs text-muted-foreground">
-        <span>01 描述想法</span><span>02 确认条件</span><span>03 查看证据</span>
+        <span>01 生成条件</span><span>02 筛选股票</span><span>03 查看原因</span>
       </div>
     </div>}
   </section>;

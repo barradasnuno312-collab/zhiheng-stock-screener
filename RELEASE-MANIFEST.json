@@ -1,10 +1,11 @@
 {
   "appId": "app_17f88a68s0k",
-  "sourceCommit": "5d85b4e43c5c1f7f359158007dad3c2a70f7332f",
-  "releaseId": "7692248582837554125",
+  "sourceCommit": "6cb69d549cd6324f576df751521d374108b6602d",
+  "documentationCommit": "357d95fe841d45b0d79330248875e12fb328c9a1",
+  "releaseId": "7692251422452452289",
   "releaseStatus": "finished",
   "onlineUrl": "https://bytedance.feishuapp.cn/app/app_17f88a68s0k",
-  "releasedAt": "2026-10-03T01:36:35.000Z",
+  "releasedAt": "2026-10-03T01:49:07.000Z",
   "dailySchedule": {
     "cron": "30 16 * * *",
     "timezone": "Asia/Shanghai"
@@ -15,5 +16,5 @@
     "eventStatus": "closed",
     "checkedAt": "2026-10-02T14:05:08.907Z"
   },
-  "note": "源码导出清单见SOURCE-MANIFEST.json；本清单不含账号信息或私有配置。"
+  "note": "运行时代码对应sourceCommit；documentationCommit只补充本次线上验收记录。源码导出清单见SOURCE-MANIFEST.json；本清单不含账号信息或私有配置。"
 }

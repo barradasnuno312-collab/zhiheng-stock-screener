@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { CircleHelp, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 import type { Condition, MetricId, Operator } from '../../../../shared/api.interface';
 import { METRICS, METRIC_MAP, OPERATOR_LABELS } from '../../../../shared/metric-catalog';
 import { conditionsSchema, detectConflicts } from '../../../../shared/validation';
@@ -27,7 +27,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({ conditions, onChange,
   return <section className="rounded-xl border bg-card" aria-label="条件编辑">
     <div className="flex items-center justify-between gap-3 border-b p-5">
       <div className="flex items-center gap-2 font-semibold"><SlidersHorizontal size={17} />筛选条件</div>
-      <span className="text-xs text-muted-foreground">{conditions.filter((item) => item.enabled).length} 条启用 · 且</span>
+      <span className="text-xs text-muted-foreground">{conditions.filter((item) => item.enabled).length} 条生效 · 同时满足</span>
     </div>
     <div className="divide-y">
       {conditions.map((condition: Condition, index: number) => <div key={condition.id}
@@ -54,7 +54,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({ conditions, onChange,
             onValueChange={(value: string) => patch(condition.id, {
               operator: value as Operator, upperValue: value === 'between' ? condition.value : undefined,
             })}>
-            <SelectTrigger className="w-20 shrink-0" aria-label={`条件${index + 1}比较方式`}><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-28 shrink-0" aria-label={`条件${index + 1}比较方式`}><SelectValue /></SelectTrigger>
             <SelectContent>{Object.entries(OPERATOR_LABELS).map(([value, label]) =>
               <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
           </Select>
@@ -71,12 +71,17 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({ conditions, onChange,
             onChange={(event) => patch(condition.id, { upperValue: event.target.value === '' ? NaN : Number(event.target.value) })} />
           <span className="text-xs">{condition.unit}</span>
         </div>}
-        <p className="text-xs leading-5 text-muted-foreground">{condition.basis}</p>
         <details className="text-xs leading-5 text-muted-foreground">
-          <summary className="cursor-pointer">定义与解析依据</summary>
-          <p className="mt-2">{METRIC_MAP[condition.metricId].description}</p>
-          <p className="mt-2">原话：{condition.originalPhrase || '无'}</p>
-          {condition.assumptionReason && <p className="mt-1">{condition.assumptionReason}</p>}
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 hover:text-foreground">
+            <CircleHelp size={14} />了解这个指标
+          </summary>
+          <div className="mt-2 space-y-2 rounded-md bg-muted/60 p-3">
+            <p className="text-foreground">{METRIC_MAP[condition.metricId].summary}</p>
+            <p><span className="font-medium text-foreground">数据口径：</span>{condition.basis}</p>
+            <p><span className="font-medium text-foreground">计算方式：</span>{METRIC_MAP[condition.metricId].description}</p>
+            <p><span className="font-medium text-foreground">对应描述：</span>{condition.originalPhrase || '手动添加'}</p>
+            {condition.assumptionReason && <p><span className="font-medium text-foreground">使用提醒：</span>{condition.assumptionReason}</p>}
+          </div>
         </details>
       </div>)}
     </div>

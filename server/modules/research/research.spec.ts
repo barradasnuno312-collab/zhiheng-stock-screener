@@ -7,7 +7,9 @@ import {
 } from './metrics';
 import type { FinancialReport, SourceMeta } from './metrics';
 import { METRICS, METRIC_MAP } from '../../../shared/metric-catalog';
-import { conditionsSchema, detectConflicts, draftSchema, sameConditions } from '../../../shared/validation';
+import {
+  conditionsSchema, detectConflicts, draftSchema, sameConditions, screenRequestSchema,
+} from '../../../shared/validation';
 import type { Condition, DatasetSnapshot, MetricId, PricePoint, StockFacts } from '../../../shared/api.interface';
 import { compareRuns, conditionEffects, screen } from './screening';
 
@@ -183,6 +185,24 @@ test('schema rejects unknown metrics, unit/window mismatch and malformed ranges'
     { value: Infinity }, { value: -1 }, { injected: 'execute' },
   ]) assert.equal(conditionsSchema.safeParse([{ ...pe('x', 'lt', 30), ...patch }]).success, false);
   assert.equal(conditionsSchema.safeParse([pe('x', 'gt', 10), pe('x', 'lt', 30)]).success, false);
+});
+test('metric help separates plain-language meaning from technical calculation detail', () => {
+  for (const metric of METRICS) {
+    assert.ok(metric.summary.length >= 10);
+    assert.ok(metric.description.length >= 10);
+    assert.notEqual(metric.summary, metric.description);
+  }
+});
+test('screen execution still requires explicit confirmation from the primary action', () => {
+  const request = {
+    conditions: [pe('x', 'lt', 30)],
+    snapshotId: '00000000-0000-4000-8000-000000000000',
+    universeVersion: 'test-universe',
+    intent: '市盈率小于30倍',
+  };
+  assert.equal(screenRequestSchema.safeParse(request).success, false);
+  assert.equal(screenRequestSchema.safeParse({ ...request, confirmed: false }).success, false);
+  assert.equal(screenRequestSchema.safeParse({ ...request, confirmed: true }).success, true);
 });
 test('AI cannot exceed two clarifications or omit required output fields', () => {
   assert.equal(draftSchema.safeParse({ intentSummary: 'test', conditions: [], clarifications: ['a', 'b', 'c'],
