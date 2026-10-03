@@ -20,8 +20,8 @@ const StrategyLibrary: React.FC<StrategyLibraryProps> = (props) => {
   const groups: Map<string, SavedVersion[]> = new Map();
   for (const version of props.versions) groups.set(version.strategyId, [...(groups.get(version.strategyId) ?? []), version]);
   return <div className="space-y-8">
-    <div><p className="text-xs font-medium tracking-widest text-primary">策略与跟踪</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">继续上次的筛选</h1>
+    <div>
+      <h1 className="text-3xl font-semibold tracking-tight">继续上次的筛选</h1>
       <p className="mt-3 text-sm text-muted-foreground">打开已保存的条件，或查看它们在新数据下是否仍然成立。</p></div>
     <section className="rounded-xl border bg-card">
       <h2 className="flex items-center gap-2 border-b p-5 font-semibold"><Bookmark size={17} />已保存的筛选<span className="ml-1 text-sm font-normal text-muted-foreground">{groups.size}</span></h2>

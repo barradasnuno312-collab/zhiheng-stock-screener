@@ -79,6 +79,7 @@ npm run build:prod
 - [指标与源字段](docs/data-dictionary.md)
 - [代码与接口](docs/source-map.md)
 - [产品取舍与市场依据](docs/product.md)
+- [用户体验内容评估](docs/ux-content-audit.md)
 - [AI使用与人工验证](docs/ai-usage.md)
 - [120秒演示脚本](docs/demo-script.md)
 - [运行与维护](docs/maintenance.md)

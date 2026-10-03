@@ -172,9 +172,6 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ run, dirty, loading, onDeta
       <h3 className="text-lg font-medium">从一个想法开始</h3>
       <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
         描述你关注的增长、估值或价格表现，生成条件后即可筛选并查看原因。</p>
-      <div className="mt-8 flex flex-wrap justify-center gap-5 text-xs text-muted-foreground">
-        <span>01 生成条件</span><span>02 筛选股票</span><span>03 查看原因</span>
-      </div>
     </div>}
   </section>;
 };

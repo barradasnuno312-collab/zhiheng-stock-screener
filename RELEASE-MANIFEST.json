@@ -1,11 +1,11 @@
 {
   "appId": "app_17f88a68s0k",
-  "sourceCommit": "6cb69d549cd6324f576df751521d374108b6602d",
-  "documentationCommit": "357d95fe841d45b0d79330248875e12fb328c9a1",
-  "releaseId": "7692251422452452289",
+  "sourceCommit": "3dc842c63fb4aa7b489fc12ae31184bba9fec802",
+  "documentationCommit": "cce13d84416b6a429923999fb9d169facefabf1e",
+  "releaseId": "7692265979913325868",
   "releaseStatus": "finished",
   "onlineUrl": "https://bytedance.feishuapp.cn/app/app_17f88a68s0k",
-  "releasedAt": "2026-10-03T01:49:07.000Z",
+  "releasedAt": "2026-10-03T02:45:35.000Z",
   "dailySchedule": {
     "cron": "30 16 * * *",
     "timezone": "Asia/Shanghai"

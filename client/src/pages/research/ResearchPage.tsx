@@ -2,8 +2,8 @@ import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
-  ArrowDownToLine, ArrowRight, BookOpen, Check, Compass, Database, Layers3,
-  LoaderCircle, LockKeyhole, RefreshCw, Search, Share2, ShieldCheck, Sparkles,
+  ArrowDownToLine, ArrowRight, Check, CircleHelp, Compass, Database, ExternalLink,
+  Layers3, LoaderCircle, LockKeyhole, RefreshCw, Search, Share2, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import type {
   CatalogResponse, Condition, IntentDraft, JobStatus, Monitor, RunComparison,
@@ -15,7 +15,6 @@ import { research as api } from '../../api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
-import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import ConditionEditor from './ConditionEditor';
 import { VERDICT_LABEL } from './research-format';
@@ -188,15 +187,14 @@ const ResearchPage: React.FC = () => {
   if (authorized !== true) return <main className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
     <section className="flex flex-col justify-between bg-sidebar p-8 text-sidebar-foreground sm:p-14 lg:p-20">
       <div className="flex items-center gap-3"><Compass size={30} strokeWidth={1.5} /><strong className="text-2xl tracking-widest">知衡</strong><span className="ml-2 border-l border-current/20 pl-4 text-xs tracking-widest opacity-65">ZHIHENG</span></div>
-      <div className="py-14"><p className="text-xs tracking-[0.25em] opacity-60">INVESTMENT RESEARCH, EXPLAINED.</p>
-        <h1 className="mt-7 text-4xl leading-snug font-medium lg:text-5xl">每一个选股想法，<br />都应该有据可查。</h1>
-        <p className="mt-6 max-w-md text-sm leading-7 opacity-65">用自然语言表达研究方向。把模糊偏好变成可编辑条件，让筛选、解释与持续跟踪连成一次完整研究。</p>
-        <div className="mt-10 flex flex-wrap gap-5 text-xs opacity-75"><span className="flex gap-2"><Check size={14} />条件可控</span><span className="flex gap-2"><Check size={14} />证据可查</span><span className="flex gap-2"><Check size={14} />版本可追溯</span></div>
+      <div className="py-14">
+        <h1 className="text-4xl leading-snug font-medium lg:text-5xl">每一个选股想法，<br />都应该有据可查。</h1>
+        <p className="mt-6 max-w-md text-sm leading-7 opacity-65">把研究想法转成可编辑条件，并查看每只股票的判断原因。</p>
       </div><p className="text-xs opacity-45">沪深300 · 财务、估值与历史价格研究</p>
     </section>
     <section className="flex items-center justify-center bg-background px-8 py-16">
       <div className="w-full max-w-sm"><LockKeyhole className="mb-6 size-7 text-primary" strokeWidth={1.5} />
-        <p className="text-xs tracking-widest text-muted-foreground">REVIEW ACCESS</p><h2 className="mt-3 text-2xl font-semibold">进入研究工作台</h2>
+        <p className="text-xs tracking-widest text-muted-foreground">访问验证</p><h2 className="mt-3 text-2xl font-semibold">进入研究工作台</h2>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">输入访问码即可进入。你的筛选与其他访客相互独立。</p>
         <form className="mt-8 space-y-4" onSubmit={loginForm.handleSubmit(({ code }) => perform('验证访问码', async () => {
           await api.login(code); loginForm.reset(); setBooting(true); setAuthorized(true);
@@ -224,7 +222,7 @@ const ResearchPage: React.FC = () => {
         <NavLink to="/" end className={({ isActive }) => `rounded-lg p-3 focus-visible:!outline-sidebar-foreground ${isActive ? 'bg-white/15' : 'opacity-60 hover:opacity-100'}`} aria-label="选股工作台"><Search size={21} /></NavLink>
         <NavLink to="/strategies" className={({ isActive }) => `rounded-lg p-3 focus-visible:!outline-sidebar-foreground ${isActive ? 'bg-white/15' : 'opacity-60 hover:opacity-100'}`} aria-label="策略与跟踪"><Layers3 size={21} /></NavLink>
       </nav>
-      <Button className="mt-auto text-sidebar-foreground opacity-70 focus-visible:!outline-sidebar-foreground" size="icon" variant="ghost" aria-label="规则与数据说明" onClick={() => setAboutOpen(true)}><BookOpen /></Button>
+      <Button className="mt-auto text-sidebar-foreground opacity-70 focus-visible:!outline-sidebar-foreground" size="icon" variant="ghost" aria-label="帮助与说明" onClick={() => setAboutOpen(true)}><CircleHelp /></Button>
     </aside>
     <div className="md:ml-20">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b bg-card px-5 py-4 lg:px-10">
@@ -232,7 +230,7 @@ const ResearchPage: React.FC = () => {
           <span className="hidden border-l pl-5 text-xs text-muted-foreground sm:block">自然语言选股 · 结果可核查</span></div>
         <nav className="flex items-center gap-2 text-sm"><NavLink to="/" end className={({ isActive }) => `flex min-h-11 items-center px-2 md:hidden ${isActive ? 'font-medium text-primary' : 'text-muted-foreground'}`}>工作台</NavLink>
           <NavLink to="/strategies" className={({ isActive }) => `flex min-h-11 items-center px-2 md:hidden ${isActive ? 'font-medium text-primary' : 'text-muted-foreground'}`}>策略与跟踪</NavLink>
-          <Button variant="ghost" size="icon" aria-label="规则与数据说明" onClick={() => setAboutOpen(true)}><BookOpen /></Button></nav>
+          <Button variant="ghost" size="icon" aria-label="帮助与说明" onClick={() => setAboutOpen(true)}><CircleHelp /></Button></nav>
       </header>
       <main id="research-main" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-6 p-5 lg:p-10">
         {error && <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>}
@@ -248,15 +246,15 @@ const ResearchPage: React.FC = () => {
             <section className="grid gap-6 lg:grid-cols-[0.85fr_1.4fr] lg:gap-12">
               <div className="py-3"><p className="text-xs font-medium tracking-[0.2em] text-primary">选股研究</p>
                 <h1 className="mt-4 text-3xl leading-tight font-semibold tracking-tight lg:text-4xl">把选股想法，<br className="hidden lg:block" />变成可验证的条件。</h1>
-                <p className="mt-4 text-sm leading-7 text-muted-foreground">先说出你的关注点，再核对指标和阈值。</p>
-                <div className="mt-5 flex flex-wrap gap-2"><Badge variant="outline">沪深300</Badge><Badge variant="outline">{catalog?.metrics.length ?? 10}项指标</Badge><Badge variant="outline">条件同时满足</Badge></div>
+                <p className="mt-4 text-sm leading-7 text-muted-foreground">在沪深300中描述关注点，再核对指标和阈值。</p>
               </div>
               <div className="rounded-xl border bg-card p-5 shadow-sm">
                 <label htmlFor="research-intent" className="flex items-center gap-2 text-sm font-medium"><Sparkles className="size-4 text-primary" />你想寻找什么样的公司？</label>
                 <Textarea id="research-intent" value={text} maxLength={2000}
                   onChange={(event) => setText(event.target.value)} disabled={parsing}
                   placeholder="例如：经营改善，估值不要太贵，最近走势相对稳定。" className="mt-3 min-h-24 resize-none border-0 bg-muted/45 text-sm shadow-none" />
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-muted-foreground">可以写关注点，也可以直接写数值范围</span>
+                <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+                  {!catalog?.aiConfigured && <span role="status" className="mr-auto text-xs text-warning">智能生成暂不可用，可直接添加条件。</span>}
                   <Button disabled={!!busy || parsing || text.trim().length < 2 || !catalog?.aiConfigured} onClick={doParse}>
                     {parsing ? <><LoaderCircle className="animate-spin" />正在生成</> : <><Sparkles />生成筛选条件</>}</Button></div>
                 <div className="mt-4 flex flex-wrap gap-2 border-t pt-3">{EXAMPLES.map((example, index) =>
@@ -304,15 +302,13 @@ const ResearchPage: React.FC = () => {
                   <Button className="w-full" size="lg" disabled={!executable} onClick={execute}>
                     {busy === '执行筛选' ? <LoaderCircle className="animate-spin" /> : <Search />}
                     {enabledConditionCount ? `筛选 ${enabledConditionCount} 条条件` : '请先添加条件'}</Button>
-                  {enabledConditionCount > 0 && <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    点击即按当前阈值筛选，所有启用条件需同时满足。</p>}
                   {!snapshot && <p className="mt-3 text-xs leading-5 text-muted-foreground">数据尚未就绪，可先生成并编辑条件。</p>}
                 </div>
               </div>
               <div className="min-w-0 space-y-4"><ResultsPanel key={run?.id ?? 'empty'} run={run} dirty={dirty}
                 loading={busy === '执行筛选'} onDetail={(codes) => { if (run) void perform('读取证据', async () => setEvidence(await api.stocks(run.id, codes))); }} />
-                {run && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4">
-                  <div className="text-xs text-muted-foreground">{activeVersion ? `已打开：${activeVersion.name} · v${activeVersion.version}` : '保存后可再次打开并跟踪条件变化'}</div>
+                {run && <div className={`flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4 ${activeVersion ? 'justify-between' : 'justify-end'}`}>
+                  {activeVersion && <div className="text-xs text-muted-foreground">已打开：{activeVersion.name} · v{activeVersion.version}</div>}
                   <div className="flex flex-wrap gap-2">{comparison && <Button variant="outline" disabled={!!busy} onClick={() => setCompareOpen(true)}><Layers3 />查看结果变化</Button>}
                     <Button variant="outline" disabled={!!busy || !conditions.length} onClick={share}><Share2 />复制条件链接</Button>
                     <Button disabled={!!busy || dirty} onClick={() => { setSaveName(activeVersion?.name ?? (draft?.intentSummary || '我的研究策略').slice(0, 40)); setSaveOpen(true); }}><ArrowDownToLine />保存本次筛选</Button></div>
@@ -323,7 +319,7 @@ const ResearchPage: React.FC = () => {
           </>}
         </Suspense>
       </main>
-      <footer className="mx-5 flex flex-wrap items-center justify-between gap-2 border-t py-6 text-[11px] text-muted-foreground lg:mx-10"><span>知衡 ZHIHENG · 把判断留给你，把依据讲清楚</span><span>数据来源：扶摇 · {catalog?.rulesVersion ?? '规则加载中'}</span></footer>
+      <footer className="mx-5 border-t py-6 text-[11px] text-muted-foreground lg:mx-10">数据来源：扶摇</footer>
     </div>
     {busy && <div role="status" className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border bg-card px-5 py-3 text-xs shadow-lg"><LoaderCircle className="size-4 animate-spin text-primary" />{busy}</div>}
     {evidence && <Suspense fallback={null}><EvidenceDialog data={evidence} onClose={() => setEvidence(null)} /></Suspense>}
@@ -367,18 +363,56 @@ const ResearchPage: React.FC = () => {
       </section>)}</div>
       <p className="text-xs leading-5 text-muted-foreground">{replay?.note}</p>
     </DialogContent></Dialog>
-    <Dialog open={aboutOpen} onOpenChange={setAboutOpen}><DialogContent className="max-h-[85vh] max-w-2xl overflow-auto bg-card"><DialogHeader><DialogTitle>规则与数据说明</DialogTitle>
-      <DialogDescription>了解结果如何产生，以及哪些结论不能由本工具给出。</DialogDescription></DialogHeader>
-      <div className="space-y-5 text-sm leading-7">
-        <section><h3 className="font-semibold">结果如何判断</h3>
-          <p className="mt-1">AI只负责把文字转成条件。点击筛选后，程序按当前数据逐条计算：全部满足为“入选”，至少一条不满足为“排除”，没有不满足但数据不全为“待核实”。</p></section>
-        <section><h3 className="font-semibold">数据如何使用</h3>
-          <p className="mt-1">范围为筛选时的沪深300，支持{catalog?.metrics.length ?? 10}项指标。财报只使用研究时点前已披露且可比的数据；行情使用已完成交易日的前复权日线。每只股票都可展开查看原始输入、日期、计算方式和来源。</p></section>
-        <section><h3 className="font-semibold">保存与跟踪</h3>
-          <p className="mt-1">保存会保留当时的条件、结果和数据日期。历史变化只使用系统真实保存的数据重新筛选，不补造数据，也不计算投资收益。</p></section>
-        <section><h3 className="font-semibold">使用边界</h3>
-          <p className="mt-1">估值不能脱离行业直接比较，历史波动不代表未来风险。本工具不预测涨跌、不承诺收益，也不执行交易。</p></section>
-        <a className="text-primary underline" href="https://fuyao.aicubes.cn/docs/" target="_blank" rel="noreferrer">查看扶摇数据接口文档</a>
+    <Dialog open={aboutOpen} onOpenChange={setAboutOpen}><DialogContent className="max-h-[85vh] max-w-2xl overflow-auto bg-card"><DialogHeader><DialogTitle>帮助与说明</DialogTitle>
+      <DialogDescription>快速找到操作方法、结果含义和问题反馈入口。</DialogDescription></DialogHeader>
+      <div className="space-y-4 text-sm leading-7">
+        <section><h3 className="font-semibold">快速开始</h3>
+          <ol className="mt-2 space-y-1 text-muted-foreground">
+            <li>1. 描述选股想法，或直接添加条件。</li>
+            <li>2. 核对指标与阈值，点击“筛选 N 条条件”。</li>
+            <li>3. 在结果中查看判断原因，按需保存、分享或导出。</li>
+          </ol>
+        </section>
+        <details className="border-t">
+          <summary className="min-h-11 cursor-pointer py-3 font-medium">结果状态说明</summary>
+          <p className="pb-3 text-muted-foreground">“入选”表示全部启用条件满足；“排除”表示至少一条不满足；“待核实”表示没有已知不满足，但存在缺失或不适用数据；“只差一条”表示仅一条条件不满足。</p>
+        </details>
+        <details className="border-t">
+          <summary className="min-h-11 cursor-pointer py-3 font-medium">保存、分享和导出的区别</summary>
+          <div className="space-y-2 pb-3 text-muted-foreground">
+            <p><span className="font-medium text-foreground">保存：</span>保留条件、结果和数据日期；记录保留30天，仅当前浏览器访客可访问。</p>
+            <p><span className="font-medium text-foreground">分享：</span>复制想法和条件链接，不包含访问码、股票名单或历史结果；打开者仍需访问码。</p>
+            <p><span className="font-medium text-foreground">导出：</span>将当前分类及搜索结果下载为CSV。</p>
+          </div>
+        </details>
+        <details className="border-t">
+          <summary className="min-h-11 cursor-pointer py-3 font-medium">常见问题</summary>
+          <div className="space-y-2 pb-3 text-muted-foreground">
+            <p>智能生成不可用时，仍可直接添加和编辑条件。</p>
+            <p>数值“—”表示缺失或不适用，不代表0。</p>
+            <p>没有入选结果时，可查看“只差一条”和排除原因，再调整阈值。</p>
+            <p>修改条件后，旧结果会保留到重新筛选，避免新旧结果混淆。</p>
+          </div>
+        </details>
+        <details className="border-t">
+          <summary className="min-h-11 cursor-pointer py-3 font-medium">数据与计算规则</summary>
+          <div className="space-y-2 pb-3 text-muted-foreground">
+            <p>范围为筛选时的沪深300，支持{catalog?.metrics.length ?? 10}项指标，所有启用条件需同时满足。</p>
+            <p>财报只使用研究时点前已披露且可比的数据；行情使用已完成交易日的前复权日线。个股指标可继续展开原始输入、日期、计算方式和来源。</p>
+            <p>历史变化只使用系统真实保存的数据重新筛选，不补造数据，也不计算投资收益。估值需结合行业理解，历史波动不代表未来风险。</p>
+            <p>本工具不预测涨跌、不承诺收益，也不执行交易。规则版本：{catalog?.rulesVersion ?? '加载中'}。</p>
+          </div>
+        </details>
+        <section className="border-t pt-4"><h3 className="font-semibold">帮助资源</h3>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+            <a className="inline-flex min-h-11 items-center gap-1 text-primary underline" href="https://github.com/barradasnuno312-collab/zhiheng-stock-screener#readme" target="_blank" rel="noreferrer">
+              使用说明与源码<ExternalLink size={13} /></a>
+            <a className="inline-flex min-h-11 items-center gap-1 text-primary underline" href="https://github.com/barradasnuno312-collab/zhiheng-stock-screener/issues/new" target="_blank" rel="noreferrer">
+              提交问题或建议<ExternalLink size={13} /></a>
+            <a className="inline-flex min-h-11 items-center gap-1 text-primary underline" href="https://fuyao.aicubes.cn/docs/" target="_blank" rel="noreferrer">
+              数据接口文档<ExternalLink size={13} /></a>
+          </div>
+        </section>
       </div>
     </DialogContent></Dialog>
   </div>;
